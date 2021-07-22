@@ -26,7 +26,7 @@ for (m, Ṁ) in enumerate(Ṁs)
 
             try 
                 model_name = name*"_stat"
-                mag = StationarySolidMagnetosphereNHCool(name*"_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, levels = 15, m = 100)
+                mag = TTauUtils.Models.SolidMagnetosphere(star, name*"_stat")
                 savemodel(mag)
             catch
                 println(log, "Critical failure! $model_name")
@@ -42,10 +42,11 @@ for (m, Ṁ) in enumerate(Ṁs)
 
             try
                 model_name = name*"_nonstat"
-                mag = NonStationarySolidMagnetosphereNHCool(name*"_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, levels = 15, m = 100)
+                mag = TTauUtils.Models.SolidMagnetosphere(star, name*"_nonstat")
                 savemodel(mag)
             catch
                 println(log, "Critical failure! $model_name")
+                continue
             end
 
             try

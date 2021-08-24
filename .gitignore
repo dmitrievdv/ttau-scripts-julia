@@ -1,4 +1,6 @@
-stars/hart94/hart94.dat
-stars/*
+stars
+stars*
+
 *.log
 *.zip
+

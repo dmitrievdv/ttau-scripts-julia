@@ -21,7 +21,12 @@ function eqwidth(prof :: HydrogenProfile)
         dv[i] = 2*(vs[i] - vs[i-1]) - dv[i-1]
     end
     fs = @. (r_ν - 1)*dv
-    return sum(fs)
+    return sum(fs[fs .> 0])
+end
+
+function maxintensity(prof :: HydrogenProfile)
+    vs, r_ν = getprofile(prof)
+    return maximum(r_ν) - 1
 end
 
 function linename(u, l)
@@ -87,9 +92,9 @@ end
 
 
 begin
-    star_name = "RZPsc"
+    star_name = "hart94"
     star = Star(star_name)
-    model_firstname = "$(star_name)_100_10500_6-8"
+    model_firstname = "$(star_name)_90_8000_2-3"
     model_name_1 = "$(model_firstname)_stat_nonlocal"
     model_name_2 = "$(model_firstname)_nonstat_nonlocal"
     model_1 = SolidMagnetosphere(star, model_name_1)
@@ -105,43 +110,43 @@ begin
     u, l = 3, 2
 
     line_name = linename(u, l)
-    i_angs = [40:5:65;]
-    layout = @layout grid(2,3)
+    i_angs = [10:20:80;]
+    layout = @layout grid(2,2)
     plts = []
 
     for i_ang in i_angs
         prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
         
         if nonstat_undef
-            plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black)
+            plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
         else
             plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :red)
             prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
-            plot!(plt, getprofile(prof_2)..., label = false, lc = :blue)
+            plot!(plt, getprofile(prof_2)..., label = false, lc = :blue, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
         end
         push!(plts, plt)
     end
-    prof_plot = plot(plts..., layout = layout, size = (1600, 800))
+    prof_plot = plot(plts..., layout = layout, size = (800, 800), margin = 5mm)
 end
 
 begin 
-    star_name = "hart94"
+    star_name = "RZPsc"
     star = Star(star_name)
-    model_firstname = "$(star_name)_100_9500_4-6"
-    model_name_1 = "$(model_firstname)_stat_nonlocal"
-    model_name_2 = "$(model_firstname)_nonstat_nonlocal"
-    model_1 = SolidMagnetosphere(star, model_name_1)
+    model_firstname = "$(star_name)_9e-11_9000_7-10"
+    model_name_1 = "$(model_firstname)_rot_stat"
+    model_name_2 = "$(model_firstname)_rot_nonstat"
+    model_1 = RotatingMagnetosphere(star, model_name_1)
     nonstat_undef = false
     try
-        model_2 = SolidMagnetosphere(star, model_name_2)
+        model_2 = RotatingMagnetosphere(star, model_name_2)
     catch
         model_2 = model_1
         nonstat_undef = true
     end
     
     r_ms = model_1.r_m_grid
-    ts = model_1.t_grid
-    ts = collect(range(0, 1, length = 100))
+    t_points = model_1.t_grid
+    t_lines = collect(range(0, 1, length = 100))
     
     T_e_plot = plot()
     n_h_plot = plot()
@@ -151,67 +156,110 @@ begin
     n_l_plot = plot()
 
     for r_m in r_ms
-        θs = @. asin(√(1/r_m)) + ts * (π/2 - asin(√(1/r_m)))
-        rs = @. r_m*sin(θs)^2
-        n_e_1s = @. 10^model_1.lgne_spl2d.(r_m, ts)
-        n_h_1s = @. 10^model_1.lgnh_spl2d.(r_m, ts)
+        θs = @. asin(√(1/r_m)) + t_points * (π/2 - asin(√(1/r_m)))
+        r_points = @. r_m*sin(θs)^2
+        θs = @. asin(√(1/r_m)) + t_lines * (π/2 - asin(√(1/r_m)))
+        r_lines = @. r_m*sin(θs)^2
+        n_e_1_lines= @. 10^model_1.lgne_spl2d.(r_m, t_lines)
+        n_h_1_lines= @. 10^model_1.lgnh_spl2d.(r_m, t_lines)
 
-        T_e_1s = @. model_1.Te_spl2d.(r_m, ts)
-        T_e_2s = @. model_2.Te_spl2d.(r_m, ts)
+        T_e_1_lines= @. model_1.Te_spl2d.(r_m, t_lines)
+        T_e_2_lines= @. model_2.Te_spl2d.(r_m, t_lines)
         
-        n_e_2s = @. 10^model_2.lgne_spl2d.(r_m, ts)
-        n_h_2s = @. 10^model_2.lgnh_spl2d.(r_m, ts)
+        n_e_2_lines= @. 10^model_2.lgne_spl2d.(r_m, t_lines)
+        n_h_2_lines= @. 10^model_2.lgnh_spl2d.(r_m, t_lines)
         
-        n_u_1s = @. 10^model_1.lgni_spl2d[u].(r_m, ts)
-        n_l_1s = @. 10^model_1.lgni_spl2d[l].(r_m, ts)
+        n_u_1_lines= @. 10^model_1.lgni_spl2d[u].(r_m, t_lines)
+        n_l_1_lines= @. 10^model_1.lgni_spl2d[l].(r_m, t_lines)
 
-        n_u_2s = @. 10^model_2.lgni_spl2d[u].(r_m, ts)
-        n_l_2s = @. 10^model_2.lgni_spl2d[l].(r_m, ts)
+        n_u_2_lines= @. 10^model_2.lgni_spl2d[u].(r_m, t_lines)
+        n_l_2_lines= @. 10^model_2.lgni_spl2d[l].(r_m, t_lines)
+
+        n_e_1_points= @. 10^model_1.lgne_spl2d.(r_m, t_points)
+        n_h_1_points= @. 10^model_1.lgnh_spl2d.(r_m, t_points)
+
+        T_e_1_points= @. model_1.Te_spl2d.(r_m, t_points)
+        T_e_2_points= @. model_2.Te_spl2d.(r_m, t_points)
+        
+        n_e_2_points= @. 10^model_2.lgne_spl2d.(r_m, t_points)
+        n_h_2_points= @. 10^model_2.lgnh_spl2d.(r_m, t_points)
+        
+        n_u_1_points= @. 10^model_1.lgni_spl2d[u].(r_m, t_points)
+        n_l_1_points= @. 10^model_1.lgni_spl2d[l].(r_m, t_points)
+
+        n_u_2_points= @. 10^model_2.lgni_spl2d[u].(r_m, t_points)
+        n_l_2_points= @. 10^model_2.lgni_spl2d[l].(r_m, t_points)
+
+        
+
 
         # plot!(plt, rs, (@. 1/(n_l_1s/n_u_1s*u^2/l^2 - 1)), lc = :red)
         # plot!(plt, rs, (@. 1/(n_l_2s/n_u_2s*u^2/l^2 - 1)), lc = :blue)
     
-        plot!(T_e_plot, rs, T_e_1s, lc = :black, legend = false, ylabel = L"T_e,\ \mathrm{K}", xlabel = L"r,\ \mathrm{R}_\star")
-        # scatter!(T_e_plot, rs, T_e_1s, mc = :black, ms = 2)
+        plot!(T_e_plot, r_lines, T_e_1_lines, lc = :black, legend = false, ylabel = L"T_e,\ \mathrm{K}", xlabel = L"r,\ \mathrm{R}_\star")
+        scatter!(T_e_plot, r_points, T_e_1_points, mc = :black, ms = 2)
 
-        plot!(n_h_plot, rs, (@.  log10(n_h_1s) ), lc = :black, legend = false, ylabel = L"\lg\ n_H,\ \mathrm{cm}^{-3}", xlabel = L"r,\ \mathrm{R}_\star")
-        # scatter!(n_h_plot, rs, (@. log10(n_h_1s) ), mc = :black, ms = 2)
+        plot!(n_h_plot, r_lines, (@.  log10(n_h_1_lines) ), lc = :black, legend = false, ylabel = L"\lg\ n_H,\ \mathrm{cm}^{-3}", xlabel = L"r,\ \mathrm{R}_\star")
+        scatter!(n_h_plot, r_points, (@. log10(n_h_1_points) ), mc = :black, ms = 2)
 
         if nonstat_undef
-            plot!(f_plot, rs, (@. n_e_1s/n_h_1s), lc = :black, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
-            # scatter!(f_plot, rs, (@. n_e_1s/n_h_1s), mc = :black, ms = 2, legend = false)
+            plot!(f_plot, r_lines, (@. n_e_1_lines/n_h_1_lines), lc = :black, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
+            scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1points), mc = :black, ms = 2, legend = false)
 
-            plot!(S_plot, rs, (@. 1/(n_l_1s/n_u_1s*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            # scatter!(S_plot, rs, (@. 1/(n_l_1s/n_u_1s*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
+            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
 
-            plot!(n_l_plot, rs, @.( log10(n_l_1s) ), lc = :black, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
-            # scatter!(n_l_plot, rs, @.( log10(n_l_1s) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
+            plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :black, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
+            scatter!(n_l_plot, r_points, @.( log10(n_l_1_points) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
 
-            plot!(n_u_plot, rs, @.( log10(n_u_1s) ), lc = :black, ylabel = L"\lg\ n_{%$u},\ \mathrm{cm}^{-3}")
-            # scatter!(n_u_plot, rs, @.( log10(n_u_1s) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
+            plot!(n_u_plot, r_lines, @.( log10(n_u_1_lines) ), lc = :black, ylabel = L"\lg\ n_{%$u},\ \mathrm{cm}^{-3}")
+            scatter!(n_u_plot, r_points, @.( log10(n_u_1_points) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
         else
-            plot!(f_plot, rs, (@. n_e_1s/n_h_1s), lc = :red, ylabel = L"n_e/n_H")
-            plot!(f_plot, rs, (@. n_e_2s/n_h_2s), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            # scatter!(f_plot, rs, (@. n_e_1s/n_h_1s), mc = :red, ms = 2, legend = false)
-            # scatter!(f_plot, rs, (@. n_e_2s/n_h_2s), mc = :blue, ms = 2)
+            plot!(f_plot, r_lines, (@. n_e_1_lines/n_h_1_lines), lc = :red, ylabel = L"n_e/n_H")
+            plot!(f_plot, r_lines, (@. n_e_2_lines/n_h_2_lines), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1_points), mc = :red, ms = 2, legend = false)
+            scatter!(f_plot, r_points, (@. n_e_2_points/n_h_2_points), mc = :blue, ms = 2)
 
-            plot!(S_plot, rs, (@. 1/(n_l_1s/n_u_1s*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            plot!(S_plot, rs, (@. 1/(n_l_2s/n_u_2s*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            # scatter!(S_plot, rs, (@. 1/(n_l_1s/n_u_1s*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
-            # scatter!(S_plot, rs, (@. 1/(n_l_2s/n_u_2s*u^2/l^2 - 1)), mc = :blue, ms = 2)
+            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            plot!(S_plot, r_lines, (@. 1/(n_l_2_lines/n_u_2_lines*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
+            scatter!(S_plot, r_points, (@. 1/(n_l_2_points/n_u_2_points*u^2/l^2 - 1)), mc = :blue, ms = 2)
 
-            plot!(n_l_plot, rs, @.( log10(n_l_1s) ), lc = :red, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
-            plot!(n_l_plot, rs, @.( log10(n_l_2s) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            # scatter!(n_l_plot, rs, @.( log10(n_l_1s) ), mc = :red, ms = 2, legend = false)
-            # scatter!(n_l_plot, rs, @.( log10(n_l_2s) ), mc = :blue, ms = 2)
+            plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :red, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
+            plot!(n_l_plot, r_lines, @.( log10(n_l_2_lines) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(n_l_plot, r_points, @.( log10(n_l_1_points) ), mc = :red, ms = 2, legend = false)
+            scatter!(n_l_plot, r_points, @.( log10(n_l_2_points) ), mc = :blue, ms = 2)
 
-            plot!(n_u_plot, rs, @.( log10(n_u_1s) ), lc = :red, ylabel = L"\lg\ n_{%$u},\ \mathrm{cm}^{-3}")
-            plot!(n_u_plot, rs, @.( log10(n_u_2s) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            # scatter!(n_u_plot, rs, @.( log10(n_u_1s) ), mc = :red, ms = 2, legend = false)
-            # scatter!(n_u_plot, rs, @.( log10(n_u_2s) ), mc = :blue, ms = 2)
+            plot!(n_u_plot, r_lines, @.( log10(n_u_1_lines) ), lc = :red, ylabel = L"\lg\ n_{%$u},\ \mathrm{cm}^{-3}")
+            plot!(n_u_plot, r_lines, @.( log10(n_u_2_lines) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(n_u_plot, r_points, @.( log10(n_u_1_points) ), mc = :red, ms = 2, legend = false)
+            scatter!(n_u_plot, r_points, @.( log10(n_u_2_points) ), mc = :blue, ms = 2)
         end
     end
-    plt = plot(T_e_plot, n_h_plot, f_plot, S_plot, n_l_plot, n_u_plot, layout = @layout([A B C; D E F]), size = (1800,800), dpi = 300)
+    plt = plot(f_plot, S_plot, layout = @layout([A B]), size = (1000,600), dpi = 300, margin = 5mm)
+
+    line_name = linename(u, l)
+    i_ang = 40
+    prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
+
+    obs_v, obs_r = open("observation.dat", "r") do io
+        obs_v = Float64[]; obs_r = Float64[]
+        for line in readlines(io)
+            v, r = parse.(Float64, split(line))
+            push!(obs_v, v); push!(obs_r, r)
+        end
+        obs_v, obs_r 
+    end
+
+    if nonstat_undef
+        prof_plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+    else
+        prof_plt = plot(getprofile(prof_1)..., title = L"H_\alpha,\ i = %$i_ang", label = false, lc = :red)
+        prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
+        plot!(prof_plt, getprofile(prof_2)..., label = false, lc = :blue, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+        plot!(prof_plt, obs_v, obs_r, label = false, lc = :black, ls = :dash)
+    end
+    plt = plot(prof_plt, size = (1000,600), dpi = 300, margin = 5mm)
 end
 
 begin
@@ -293,8 +341,8 @@ begin
     star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    T_e_str = "8500"
-    mag_str = "4-6"
+    T_e_str = "8000"
+    mag_str = "2-3"
     
     models = String[]
     regex = Regex("$(star_name)_[0-9]{2,2}_$(T_e_str)_$(mag_str)")

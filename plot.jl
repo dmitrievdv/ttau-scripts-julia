@@ -94,7 +94,7 @@ end
 begin
     star_name = "hart94"
     star = Star(star_name)
-    model_firstname = "$(star_name)_90_8000_2-3"
+    model_firstname = "$(star_name)_95_10500_2-3"
     model_name_1 = "$(model_firstname)_stat_nonlocal"
     model_name_2 = "$(model_firstname)_nonstat_nonlocal"
     model_1 = SolidMagnetosphere(star, model_name_1)
@@ -107,7 +107,7 @@ begin
         nonstat_undef = true
     end
 
-    u, l = 3, 2
+    u, l = 5, 2
 
     line_name = linename(u, l)
     i_angs = [10:20:80;]
@@ -130,20 +130,22 @@ begin
 end
 
 begin 
-    star_name = "RZPsc"
+    star_name = "hart94"
     star = Star(star_name)
-    model_firstname = "$(star_name)_9e-11_9000_7-10"
-    model_name_1 = "$(model_firstname)_rot_stat"
-    model_name_2 = "$(model_firstname)_rot_nonstat"
-    model_1 = RotatingMagnetosphere(star, model_name_1)
+    model_firstname = "$(star_name)_90_8500_2-3"
+    model_name_1 = "$(model_firstname)_stat_nonlocal"
+    model_name_2 = "$(model_firstname)_nonstat_nonlocal"
+    model_1 = SolidMagnetosphere(star, model_name_1)
     nonstat_undef = false
     try
-        model_2 = RotatingMagnetosphere(star, model_name_2)
+        model_2 = SolidMagnetosphere(star, model_name_2)
     catch
         model_2 = model_1
         nonstat_undef = true
     end
     
+    u, l = 7, 4
+
     r_ms = model_1.r_m_grid
     t_points = model_1.t_grid
     t_lines = collect(range(0, 1, length = 100))
@@ -206,8 +208,8 @@ begin
             plot!(f_plot, r_lines, (@. n_e_1_lines/n_h_1_lines), lc = :black, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
             scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1points), mc = :black, ms = 2, legend = false)
 
-            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
 
             plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :black, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
             scatter!(n_l_plot, r_points, @.( log10(n_l_1_points) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
@@ -220,10 +222,10 @@ begin
             scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1_points), mc = :red, ms = 2, legend = false)
             scatter!(f_plot, r_points, (@. n_e_2_points/n_h_2_points), mc = :blue, ms = 2)
 
-            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            plot!(S_plot, r_lines, (@. 1/(n_l_2_lines/n_u_2_lines*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
-            scatter!(S_plot, r_points, (@. 1/(n_l_2_points/n_u_2_points*u^2/l^2 - 1)), mc = :blue, ms = 2)
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_2_lines/n_u_2_lines*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_2_points/n_u_2_points*u^2/l^2 - 1)), mc = :blue, ms = 2)
 
             plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :red, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
             plot!(n_l_plot, r_lines, @.( log10(n_l_2_lines) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
@@ -238,35 +240,181 @@ begin
     end
     plt = plot(f_plot, S_plot, layout = @layout([A B]), size = (1000,600), dpi = 300, margin = 5mm)
 
-    line_name = linename(u, l)
-    i_ang = 40
-    prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
+    # line_name = linename(u, l)
+    # i_ang = 45
+    # prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
 
-    obs_v, obs_r = open("observation.dat", "r") do io
-        obs_v = Float64[]; obs_r = Float64[]
-        for line in readlines(io)
-            v, r = parse.(Float64, split(line))
-            push!(obs_v, v); push!(obs_r, r)
-        end
-        obs_v, obs_r 
-    end
+    # obs_v, obs_r = open("observation.dat", "r") do io
+    #     obs_v = Float64[]; obs_r = Float64[]
+    #     for line in readlines(io)
+    #         v, r = parse.(Float64, split(line))
+    #         push!(obs_v, v); push!(obs_r, r)
+    #     end
+    #     obs_v, obs_r 
+    # end
 
-    if nonstat_undef
-        prof_plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
-    else
-        prof_plt = plot(getprofile(prof_1)..., title = L"H_\alpha,\ i = %$i_ang", label = false, lc = :red)
-        prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
-        plot!(prof_plt, getprofile(prof_2)..., label = false, lc = :blue, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
-        plot!(prof_plt, obs_v, obs_r, label = false, lc = :black, ls = :dash)
-    end
-    plt = plot(prof_plt, size = (1000,600), dpi = 300, margin = 5mm)
+    # if nonstat_undef
+    #     prof_plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+    # else
+    #     prof_plt = plot(getprofile(prof_1)..., title = L"H_\alpha,\ i = %$i_ang", label = false, lc = :red)
+    #     prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
+    #     plot!(prof_plt, getprofile(prof_2)..., label = false, lc = :blue, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+    #     plot!(prof_plt, obs_v, obs_r, label = false, lc = :black, ls = :dash, xlims = (-300, 500))
+    # end
+    # plt = plot(prof_plt, size = (1000,600), dpi = 300, margin = 5mm)
 end
+
+# begin
+#     star_name = "hart94"
+#     star = Star(star_name)
+#     models_all = readdir("stars/$star_name")[2:end]
+#     T_e_str = "8500"
+#     mag_str = "2-3"
+    
+#     models = String[]
+#     regex = Regex("$(star_name)_[0-9]{2,2}_$(T_e_str)_$(mag_str)")
+#     for model_name in models_all
+#         occur = occursin(regex, model_name)
+#         if occur
+#             m = match(regex, model_name)
+#             if !isempty(m.match) && (isempty(models) || m.match != models[end])
+#                 push!(models, m.match)
+#                 println(m.match)
+#             end
+#         end
+#     end
+
+#     regex = Regex("$(star_name)_[0-9]{3,}_$(T_e_str)_$(mag_str)")
+#     for model_name in models_all
+#         occur = occursin(regex, model_name)
+#         if occur
+#             m = match(regex, model_name)
+#             if !isempty(m.match) && (isempty(models) || m.match != models[end])
+#                 push!(models, m.match)
+#                 println(m.match)
+#             end
+#         end
+#     end
+
+#     u, l = 4, 2
+
+    
+
+#     anim = @animate for model_name in models
+#         model_name_1 = "$(model_name)_stat_nonlocal"
+#         model_name_2 = "$(model_name)_nonstat_nonlocal"
+#         model_1 = SolidMagnetosphere(star, model_name_1)
+#         model_2 = model_1
+#         nonstat_undef = false
+#         try
+#             model_2 = SolidMagnetosphere(star, model_name_2)
+#         catch
+#             model_2 = model_1
+#             nonstat_undef = true
+#         end
+#         u, l = 4, 2
+#         line_name = linename(u, l)
+#         i_angs = [10:10:80;]
+#         layout = @layout grid(2,4)
+#         plts = []
+
+        
+
+#         for i_ang in i_angs
+#             prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
+        
+#             if nonstat_undef
+#                 plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black)
+#             else
+#                 plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :red)
+#                 prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
+#                 plot!(plt, getprofile(prof_2)..., label = false, lc = :blue)
+#             end
+#             push!(plts, plt)
+#         end
+#         title = plot(title = "$model_name, $line_name", grid = false, axis = ([], false), showaxis = false, bottom_margin = -50Plots.px)
+#         prof_plot = plot(title, plts..., layout = @layout([A{0.02h}; [A B C D; E F G H]]), size = (1600, 900), dpi = 300)
+#         # prof_plot = plot(plts..., layout = layout, size = (1600, 800))
+#     end
+#     gif(anim, "$(line_name)_anim.gif", fps = 1)
+# end
+
+# begin
+#     star_name = "hart94"
+#     star = Star(star_name)
+#     models_all = readdir("stars/$star_name")[2:end]
+#     T_e_str = "8000"
+#     mag_str = "2-3"
+    
+#     models = String[]
+#     regex = Regex("$(star_name)_[0-9]{2,2}_$(T_e_str)_$(mag_str)")
+#     for model_name in models_all
+#         occur = occursin(regex, model_name)
+#         if occur
+#             m = match(regex, model_name)
+#             if !isempty(m.match) && (isempty(models) || m.match != models[end])
+#                 push!(models, m.match)
+#                 println(m.match)
+#             end
+#         end
+#     end
+
+#     regex = Regex("$(star_name)_[0-9]{3,}_$(T_e_str)_$(mag_str)")
+#     for model_name in models_all
+#         occur = occursin(regex, model_name)
+#         if occur
+#             m = match(regex, model_name)
+#             if !isempty(m.match) && (isempty(models) || m.match != models[end])
+#                 push!(models, m.match)
+#                 println(m.match)
+#             end
+#         end
+#     end
+
+#     u, l = 3, 2
+#     i = 40
+
+#     Ṁs = []
+#     stat_eqwidths = []
+#     nonstat_eqwidths = []
+
+#     for model_name in models
+#         model_name_1 = "$(model_name)_stat_nonlocal"
+#         model_name_2 = "$(model_name)_nonstat_nonlocal"
+#         model_1 = SolidMagnetosphere(star, model_name_1)
+#         model_2 = model_1
+#         nonstat_undef = false
+#         try
+#             model_2 = SolidMagnetosphere(star, model_name_2)
+#         catch
+#             model_2 = model_1
+#             nonstat_undef = true
+#         end
+#         line_name = linename(u, l)
+
+#         Ṁ = model_1.Mdot
+#         push!(Ṁs, Ṁ)
+#         prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i")
+#         push!(stat_eqwidths, eqwidth(prof_1))
+
+#         if nonstat_undef
+#             push!(nonstat_eqwidths, eqwidth(prof_1))
+#         else
+#             prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i")
+#             push!(nonstat_eqwidths, eqwidth(prof_2))
+#         end
+#     end
+#     plt = plot(Ṁs, abs.(stat_eqwidths), label = "stat", lc = :red)
+#     scatter!(plt, Ṁs, abs.(stat_eqwidths), label = false, ms = 2, mc = :red)
+#     plot!(plt, Ṁs, abs.(nonstat_eqwidths), label = "nonstat", lc = :blue)
+#     scatter!(plt, Ṁs, abs.(nonstat_eqwidths), label = false, ms = 2, mc = :blue, xaxis = :log, yaxis = :log)
+# end
 
 begin
     star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    T_e_str = "8500"
+    T_e_str = "10500"
     mag_str = "2-3"
     
     models = String[]
@@ -294,82 +442,8 @@ begin
         end
     end
 
-    u, l = 4, 2
-
-    
-
-    anim = @animate for model_name in models
-        model_name_1 = "$(model_name)_stat_nonlocal"
-        model_name_2 = "$(model_name)_nonstat_nonlocal"
-        model_1 = SolidMagnetosphere(star, model_name_1)
-        model_2 = model_1
-        nonstat_undef = false
-        try
-            model_2 = SolidMagnetosphere(star, model_name_2)
-        catch
-            model_2 = model_1
-            nonstat_undef = true
-        end
-        u, l = 4, 2
-        line_name = linename(u, l)
-        i_angs = [10:10:80;]
-        layout = @layout grid(2,4)
-        plts = []
-
-        
-
-        for i_ang in i_angs
-            prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
-        
-            if nonstat_undef
-                plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black)
-            else
-                plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :red)
-                prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
-                plot!(plt, getprofile(prof_2)..., label = false, lc = :blue)
-            end
-            push!(plts, plt)
-        end
-        title = plot(title = "$model_name, $line_name", grid = false, axis = ([], false), showaxis = false, bottom_margin = -50Plots.px)
-        prof_plot = plot(title, plts..., layout = @layout([A{0.02h}; [A B C D; E F G H]]), size = (1600, 900), dpi = 300)
-        # prof_plot = plot(plts..., layout = layout, size = (1600, 800))
-    end
-    gif(anim, "$(line_name)_anim.gif", fps = 1)
-end
-
-begin
-    star_name = "hart94"
-    star = Star(star_name)
-    models_all = readdir("stars/$star_name")[2:end]
-    T_e_str = "8000"
-    mag_str = "2-3"
-    
-    models = String[]
-    regex = Regex("$(star_name)_[0-9]{2,2}_$(T_e_str)_$(mag_str)")
-    for model_name in models_all
-        occur = occursin(regex, model_name)
-        if occur
-            m = match(regex, model_name)
-            if !isempty(m.match) && (isempty(models) || m.match != models[end])
-                push!(models, m.match)
-                println(m.match)
-            end
-        end
-    end
-
-    regex = Regex("$(star_name)_[0-9]{3,}_$(T_e_str)_$(mag_str)")
-    for model_name in models_all
-        occur = occursin(regex, model_name)
-        if occur
-            m = match(regex, model_name)
-            if !isempty(m.match) && (isempty(models) || m.match != models[end])
-                push!(models, m.match)
-                println(m.match)
-            end
-        end
-    end
-
-    u, l = 3, 2
+    u, l = 5, 2
+    u2, l2 = 4, 2
     i = 40
 
     Ṁs = []
@@ -389,21 +463,24 @@ begin
             nonstat_undef = true
         end
         line_name = linename(u, l)
+        line_name2 = linename(u2, l2)
 
         Ṁ = model_1.Mdot
         push!(Ṁs, Ṁ)
         prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i")
-        push!(stat_eqwidths, eqwidth(prof_1))
+        prof_2 = HydrogenProfile(star, model_1, "$(line_name2)_$i")
+        push!(stat_eqwidths, maxintensity(prof_1)/maxintensity(prof_2))
 
         if nonstat_undef
-            push!(nonstat_eqwidths, eqwidth(prof_1))
+            push!(nonstat_eqwidths, maxintensity(prof_1)/maxintensity(prof_2))
         else
-            prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i")
-            push!(nonstat_eqwidths, eqwidth(prof_2))
+            prof_1 = HydrogenProfile(star, model_2, "$(line_name)_$i")
+            prof_2 = HydrogenProfile(star, model_2, "$(line_name2)_$i")
+            push!(nonstat_eqwidths, maxintensity(prof_1)/maxintensity(prof_2))
         end
     end
     plt = plot(Ṁs, abs.(stat_eqwidths), label = "stat", lc = :red)
     scatter!(plt, Ṁs, abs.(stat_eqwidths), label = false, ms = 2, mc = :red)
     plot!(plt, Ṁs, abs.(nonstat_eqwidths), label = "nonstat", lc = :blue)
-    scatter!(plt, Ṁs, abs.(nonstat_eqwidths), label = false, ms = 2, mc = :blue, xaxis = :log, yaxis = :log)
+    scatter!(plt, Ṁs, abs.(nonstat_eqwidths), label = false, ms = 2, mc = :blue, xaxis = :log)
 end

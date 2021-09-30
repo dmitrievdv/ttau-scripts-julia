@@ -1,11 +1,12 @@
 using TTauUtils
 
-star_name = "RZPsc"
+for star_name in ["hart94", "coldhart94", "warmhart94"]
+# star_name = "coldhart94"
 star = Star(star_name)
 models = readdir("stars/$star_name")[2:end]#["hart94_85_8500_4-6_stat_nonlocal", "hart94_85_8500_4-6_nonstat_nonlocal"]
 
-transitions = [(3, 2)]
-i_angles = [30:5:70;]
+transitions = [(5, 3), (7, 4), (4, 2), (3, 2)]
+i_angles = [10, 40, 80]
 
 log = open("profiles.log", "w")
 
@@ -38,8 +39,11 @@ for model_name in models
                     continue
                 end    
                 model = SolidMagnetosphere(star, model_name)
-                prof = HydrogenProfileDoppler(model, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
-                saveprofile(prof, linename(u,l)*"_$i_ang")
+                # println(split(model_name, '_')[end])
+                if split(model_name, '_')[end] == "nonlocal"
+                    @time prof = HydrogenProfileDoppler(model, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
+                    saveprofile(prof, linename(u,l)*"_$i_ang")
+                end
             catch e
                 println(log, model_name)
                 bt = catch_backtrace()
@@ -52,3 +56,4 @@ for model_name in models
 end
 
 close(log)
+end

@@ -100,39 +100,76 @@ begin
     savefig(plt, "Te_nH.pdf")
 end
 
-begin 
-    star_name = "hart94"
-    star = Star(star_name)
-    model_name = "hart94_90_8000_2-3_stat_nonlocal"
-    model = SolidMagnetosphere(star, model_name)
-    r_ms = model.r_m_grid
-    t_points = model.t_grid
-    t_lines = collect(range(0, 1, length = 100))
+# begin 
+#     star_name = "hart94"
+#     star = Star(star_name)
+#     model_name = "hart94_95_8500_2-3_stat_nonlocal"
+#     model = SolidMagnetosphere(star, model_name)
+#     r_ms = model.r_m_grid
+#     t_points = model.t_grid
+#     t_lines = collect(range(0, 1, length = 100))
 
-    T_e_plot = plot()
-    n_h_plot = plot()
-    f_plot = plot()
+#     T_e_plot = plot()
+#     n_h_plot = plot()
+#     f_plot = plot()
 
-    for r_m in r_ms
-        θ_lines = @. asin(√(1/r_m)) + t_lines * (π/2 - asin(√(1/r_m)))
-        r_lines = @. r_m*sin(θ_lines)^2
-        θ_points = @. asin(√(1/r_m)) + t_points * (π/2 - asin(√(1/r_m)))
-        r_points = @. r_m*sin(θ_points)^2
-        n_e_lines = @. 10^model.lgne_spl2d.(r_m, ts_lines)
-        n_h_lines = @. 10^model.lgnh_spl2d.(r_m, ts_lines)
-        T_e_lines = @. model.Te_spl2d.(r_m, ts_lines)
+#     for r_m in r_ms
+#         θ_lines = @. asin(√(1/r_m)) + t_lines * (π/2 - asin(√(1/r_m)))
+#         r_lines = @. r_m*sin(θ_lines)^2
+#         θ_points = @. asin(√(1/r_m)) + t_points * (π/2 - asin(√(1/r_m)))
+#         r_points = @. r_m*sin(θ_points)^2
+#         n_e_lines = @. 10^model.lgne_spl2d.(r_m, ts_lines)
+#         n_h_lines = @. 10^model.lgnh_spl2d.(r_m, ts_lines)
+#         T_e_lines = @. model.Te_spl2d.(r_m, ts_lines)
 
-        n_e_points = @. 10^model.lgne_spl2d.(r_m, ts_points)
-        n_h_points = @. 10^model.lgnh_spl2d.(r_m, ts_points)
-        T_e_points = @. model.Te_spl2d.(r_m, ts_points)
+#         n_e_points = @. 10^model.lgne_spl2d.(r_m, ts_points)
+#         n_h_points = @. 10^model.lgnh_spl2d.(r_m, ts_points)
+#         T_e_points = @. model.Te_spl2d.(r_m, ts_points)
 
-        plot!(T_e_plot, r_lines, T_e_lines, lc = :black, legend = false, ylabel = L"T_e,\ \mathrm{K}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
-        scatter!(T_e_plot, r_points, T_e_points, mc = :black, ms = 2, legend = false)
-        plot!(n_h_plot, r_lines, (@.  log10(n_h_lines) ), lc = :black, legend = false, ylabel = L"\lg\ n_H,\ \mathrm{cm}^{-3}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
-        scatter!(n_h_plot, r_points, (@.  log10(n_h_points)), mc = :black, ms = 2, legend = false)
-        plot!(f_plot, r_lines, (@.  n_e_lines/n_h_lines), lc = :black, legend = false, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
-        scatter!(f_plot, r_points, (@.  n_e_points/n_h_points), mc = :black, ms = 2, legend = false)
-    end
-    plt = plot(T_e_plot, n_h_plot, layout = (@layout grid(1,2)), size = (1000, 500), dpi = 300)
-    savefig(plt, "Te_nH.png")
-end
+#         plot!(T_e_plot, r_lines, T_e_lines, lc = :black, legend = false, ylabel = L"T_e,\ \mathrm{K}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
+#         scatter!(T_e_plot, r_points, T_e_points, mc = :black, ms = 2, legend = false)
+#         plot!(n_h_plot, r_lines, (@.  log10(n_h_lines) ), lc = :black, legend = false, ylabel = L"\lg\ n_H,\ \mathrm{cm}^{-3}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
+#         scatter!(n_h_plot, r_points, (@.  log10(n_h_points)), mc = :black, ms = 2, legend = false)
+#         plot!(f_plot, r_lines, (@.  n_e_lines/n_h_lines), lc = :black, legend = false, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
+#         scatter!(f_plot, r_points, (@.  n_e_points/n_h_points), mc = :black, ms = 2, legend = false)
+#     end
+#     plt = plot(T_e_plot, n_h_plot, layout = (@layout grid(1,2)), size = (1000, 500), dpi = 300)
+#     savefig(plt, "Te_nH.png")
+# end
+
+# begin 
+#     star_name = "hart94"
+#     star = Star(star_name)
+#     model_name = "hart94_90_8000_2-3_stat_nonlocal"
+#     model = SolidMagnetosphere(star, model_name)
+#     r_ms = model.r_m_grid
+#     t_points = model.t_grid
+#     t_lines = collect(range(0, 1, length = 100))
+
+#     T_e_plot = plot()
+#     n_h_plot = plot()
+#     f_plot = plot()
+
+#     for r_m in r_ms
+#         θ_lines = @. asin(√(1/r_m)) + t_lines * (π/2 - asin(√(1/r_m)))
+#         r_lines = @. r_m*sin(θ_lines)^2
+#         θ_points = @. asin(√(1/r_m)) + t_points * (π/2 - asin(√(1/r_m)))
+#         r_points = @. r_m*sin(θ_points)^2
+#         n_e_lines = @. 10^model.lgne_spl2d.(r_m, ts_lines)
+#         n_h_lines = @. 10^model.lgnh_spl2d.(r_m, ts_lines)
+#         T_e_lines = @. model.Te_spl2d.(r_m, ts_lines)
+
+#         n_e_points = @. 10^model.lgne_spl2d.(r_m, ts_points)
+#         n_h_points = @. 10^model.lgnh_spl2d.(r_m, ts_points)
+#         T_e_points = @. model.Te_spl2d.(r_m, ts_points)
+
+#         plot!(T_e_plot, r_lines, T_e_lines, lc = :black, legend = false, ylabel = L"T_e,\ \mathrm{K}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
+#         scatter!(T_e_plot, r_points, T_e_points, mc = :black, ms = 2, legend = false)
+#         plot!(n_h_plot, r_lines, (@.  log10(n_h_lines) ), lc = :black, legend = false, ylabel = L"\lg\ n_H,\ \mathrm{cm}^{-3}", xlabel = L"r,\ \mathrm{R}_\star", margin = 5mm)
+#         scatter!(n_h_plot, r_points, (@.  log10(n_h_points)), mc = :black, ms = 2, legend = false)
+#         plot!(f_plot, r_lines, (@.  n_e_lines/n_h_lines), lc = :black, legend = false, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
+#         scatter!(f_plot, r_points, (@.  n_e_points/n_h_points), mc = :black, ms = 2, legend = false)
+#     end
+#     plt = plot(T_e_plot, n_h_plot, layout = (@layout grid(1,2)), size = (1000, 500), dpi = 300)
+#     savefig(plt, "Te_nH.png")
+# end

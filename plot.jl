@@ -108,7 +108,7 @@ begin
         nonstat_undef = true
     end
 
-    u, l = 3, 2
+    u, l = 5, 2
 
     line_name = linename(u, l)
     i_angs = [80;]
@@ -145,6 +145,8 @@ begin
         nonstat_undef = true
     end
     
+    u, l = 7, 4
+
     r_ms = model_1.r_m_grid
     t_points = model_1.t_grid
     t_lines = collect(range(0, 1, length = 100))
@@ -207,8 +209,8 @@ begin
             plot!(f_plot, r_lines, (@. n_e_1_lines/n_h_1_lines), lc = :black, ylabel = L"n_e/n_H", xlabel = L"r,\ \mathrm{R}_\star")
             scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1points), mc = :black, ms = 2, legend = false)
 
-            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :black, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
 
             plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :black, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
             scatter!(n_l_plot, r_points, @.( log10(n_l_1_points) ), mc = :black, ms = 2, legend = false, xlabel = L"r,\ \mathrm{R}_\star")
@@ -221,10 +223,10 @@ begin
             scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1_points), mc = :red, ms = 2, legend = false)
             scatter!(f_plot, r_points, (@. n_e_2_points/n_h_2_points), mc = :blue, ms = 2)
 
-            plot!(S_plot, r_lines, (@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
-            plot!(S_plot, r_lines, (@. 1/(n_l_2_lines/n_u_2_lines*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
-            scatter!(S_plot, r_points, (@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
-            scatter!(S_plot, r_points, (@. 1/(n_l_2_points/n_u_2_points*u^2/l^2 - 1)), mc = :blue, ms = 2)
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_1_lines/n_u_1_lines*u^2/l^2 - 1)), lc = :red, ylabel = L"S_{%$u%$l},\ \mathrm{erg}\cdot\mathrm{cm}^{-2}\cdot\mathrm{s}^{-1}")
+            plot!(S_plot, r_lines, log10.(@. 1/(n_l_2_lines/n_u_2_lines*u^2/l^2 - 1)), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_1_points/n_u_1_points*u^2/l^2 - 1)), mc = :red, ms = 2, legend = false)
+            scatter!(S_plot, r_points, log10.(@. 1/(n_l_2_points/n_u_2_points*u^2/l^2 - 1)), mc = :blue, ms = 2)
 
             plot!(n_l_plot, r_lines, @.( log10(n_l_1_lines) ), lc = :red, ylabel = L"\lg\ n_{%$l},\ \mathrm{cm}^{-3}")
             plot!(n_l_plot, r_lines, @.( log10(n_l_2_lines) ), lc = :blue, xlabel = L"r,\ \mathrm{R}_\star", legend = false)
@@ -1002,7 +1004,8 @@ begin
         end
     end
 
-    u, l = 3, 2
+    u, l = 5, 2
+    u2, l2 = 4, 2
     i = 40
 
     Ṁs, stat_eqwidths, nonstat_eqwidths = calceqwidths(models, u, l, i)

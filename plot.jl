@@ -95,7 +95,7 @@ end
 begin
     star_name = "hart94"
     star = Star(star_name)
-    model_firstname = "$(star_name)_93_10000_2-3"
+    model_firstname = "$(star_name)_90_8000_2-3"
     model_name_1 = "$(model_firstname)_stat_nonlocal"
     model_name_2 = "$(model_firstname)_nonstat_nonlocal"
     model_1 = SolidMagnetosphere(star, model_name_1)
@@ -108,26 +108,25 @@ begin
         nonstat_undef = true
     end
 
-    u, l = 5, 2
+    u, l = 3, 2
 
     line_name = linename(u, l)
-    i_angs = [80;]
-    layout = @layout grid(1,1)
+    i_angs = [0:30:90;]
     plts = []
-
     for i_ang in i_angs
         prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
-        
+        plt = plot(legend = false, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
         if nonstat_undef
-            plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :black, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+            plot!(plt, getprofile(prof_1)..., title = L"i = %$(i_ang)\degree", label = false, lc = :black)
         else
-            plt = plot(getprofile(prof_1)..., title = "i = $i_ang", label = false, lc = :red)
+            plot!(plt, getprofile(prof_1)..., title = L"i = %$(i_ang)\degree", label = false, lc = :black)
             prof_2 = HydrogenProfile(star, model_2, "$(line_name)_$i_ang")
-            plot!(plt, getprofile(prof_2)..., label = false, lc = :blue, xlabel = L"v,\ \mathrm{km/s}", ylabel = L"r_\nu")
+            plot!(plt, getprofile(prof_2)..., label = false, lc = :black, ls = :dash)
         end
         push!(plts, plt)
     end
-    prof_plot = plot(plts..., layout = layout, size = (800, 800), margin = 5mm)
+    prof_plot = plot(plts..., layout = @layout([A B; C D]), size = (800, 800), margin = 5mm)
+    savefig(prof_plot, "hart94_90_8000_2-3-Ha.pdf")
 end
 
 begin 
@@ -408,10 +407,10 @@ begin
     star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    int_T_maxs = [7000:1000:11000;]
+    int_T_maxs = [7000:500:10000;12000]
     # int_T_maxs = [7000,8000,9000,10000,11000]
     T_max_strings = string.(int_T_maxs)
-    plt = plot()
+    plt = plot(size = (400,400))
     mag_str = "2-3"
     line_intencities = [0.1, 0.15, 0.2, 0.3, 0.5, 1.0, 2.0, 5.0]
     line_intencities_strs = ["0.1", "0.15", "0.2", "0.3", "0.5", "1.0", "2.0", "5.0"]
@@ -420,7 +419,7 @@ begin
     line_intencities_rels = zeros(n_int, n_T)
     line_intencities_Ṁs = zeros(n_int, n_T)
     annotations_pos = zeros(n_T)
-    annotations_pos[int_T_maxs .< 9000] .= -0.05
+    # annotations_pos[int_T_maxs .< 9000] .= -0.05
     maximum_lgṀ = -100.0
     for (j,T_e_str) in enumerate(T_max_strings)
 
@@ -450,7 +449,7 @@ begin
         end
 
         u, l = 3, 2
-        i = 80
+        i = 40
 
         Ṁs, stat_eqwidths, nonstat_eqwidths = calceqwidths(models, u, l, i)
         rel = abs.(stat_eqwidths ./ nonstat_eqwidths)
@@ -500,14 +499,14 @@ begin
         rel_rel[last+1] = line_intencities_rels[1,j]
         Ṁs[last+1] = line_intencities_Ṁs[1,j]
         if int_T_maxs[j] % 1000 == 0
-        plot!(plt, Ṁs[1:last+1], log10.(rel_rel[1:last+1]), lc = :black, xaxis = :log, ylims = (-0.1,1), yticks = (log10.(1:10), string.(1:10)),
+        plot!(plt, Ṁs[1:last+1], log10.(rel_rel[1:last+1]), lc = :black, xaxis = :log, ylims = (-0.03,1), yticks = (log10.(1:10), string.(1:10)),
                     label = false, xminorgrid = true)
         
         scatter!(plt, Ṁs[1:last+1], log10.(rel_rel[1:last+1]), mc = :black, ms = 3, xaxis = :log,
-                    label = false, xminorgrid = true)
+                    label = false, xminorgrid = true, xlims = (1e-11, 5e-8))
         
         annotate!(plt, Ṁs[last+1], log10(rel_rel[last+1]) + annotations_pos[j], text(T_e_str, :bottom, 7))
-        plot!(xlabel = L"\lg \dot{M}", ylabel = L"\mathrm{max}\{F^\mathrm{stat}_{\mathrm{H}_\alpha}\}/\mathrm{max}\{F^\mathrm{adv}_{\mathrm{H}_\alpha}\}")
+        plot!(xlabel = L"\lg \dot{M},\ \mathrm{M_\odot/yr}", ylabel = L"I^\mathrm{stat}_{\mathrm{H_\alpha}}/I^\mathrm{nostat}_{\mathrm{H_\alpha}}")
         end
     end
 
@@ -526,12 +525,15 @@ begin
         end
     end
 
+    annotation_pos_rel = [0.00, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+    annotation_pos_Ṁ = [1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1]
+
     for k = 2:n_int
         rels = line_intencities_rels[k,:]
         Ṁs = line_intencities_Ṁs[k,:]
         str = line_intencities_strs[k]
         plot!(plt, Ṁs, log10.(rels), ls = :dot, lc = :black, label = false)
-        annotate!(plt, Ṁs[end]/1.1, log10.(rels[end])-0.01, text(str, :top, "Italics", 8))
+        annotate!(plt, Ṁs[1]*annotation_pos_Ṁ[k], log10(rels[1])+annotation_pos_rel[k], text(str, :left, "Italics", 8))
     end
 
     plt
@@ -555,24 +557,24 @@ begin
 end
 
 begin
-for star_name in ["coldhart94"]
+for star_name in ["hart94"]
     # star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    int_T_maxs = [8000:1000:12000;]
+    int_T_maxs = [7000:1000:10000; 12000]
     # int_T_maxs = [7000,8000,9000,10000,11000]
     T_max_strings = string.(int_T_maxs)
     plt = plot()
     
-    diag_x = [-10.5, -8.6]
-    ylims = [-11, -8.5]
-    plt2 = plot(xlims = 10 .^ diag_x, ylims = 10 .^ ylims, xlabel = L"\dot{M}_\mathrm{adv},\ \mathrm{M_\odot/yr}", ylabel = L"\dot{M}_\mathrm{stat},\ \mathrm{M_\odot/yr}")
+    diag_x = [-10.5, -7.6]
+    ylims = [-11, -7.5]
+    plt2 = plot(xlims = 10 .^ diag_x, ylims = 10 .^ ylims, xlabel = L"\dot{M}_\mathrm{nonstat},\ \mathrm{M_\odot/yr}", ylabel = L"\dot{M}_\mathrm{stat},\ \mathrm{M_\odot/yr}")
     plot!(plt2, 10 .^ diag_x, 10 .^ diag_x, ls = :dash, label = false, legend = :topleft, lc = :gray)
     plot!(plt2, 10 .^ diag_x, 10 .^ (diag_x .- log10(2)), ls = :dot, lc = :gray, label = false, xaxis = :log)
     plot!(plt2, 10 .^ diag_x, 10 .^ ( diag_x .- log10(4)), ls = :dot, lc = :gray, label = false, yaxis = :log)
-    mag_str = "4-6"
+    mag_str = "2-3"
     r_mi, r_mo = parse.(Int, split(mag_str, '-'))
-    plot!(plt2, title = L"T_\star = %$(Int(star.T))\ \mathrm{K};\ r_\mathrm{mi} = %$r_mi;\ r_\mathrm{mo} = %$r_mo")
+    plot!(plt2, title = L"r_\mathrm{mi} = %$r_mi;\ r_\mathrm{mo} = %$r_mo", size = (350,350))
     
     for (j,T_e_str) in enumerate(T_max_strings)
 
@@ -714,10 +716,10 @@ function calceqwidths(models, u_1, l_1, u_2, l_2, i; suffix = "")
 end
 
 begin
-    star_name = "coldhart94"
+    star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    int_T_maxs = [7000:1000:11000;]
+    int_T_maxs = [7000:1000:12000;]
     T_max_strings = string.(int_T_maxs)
     plt = plot()
     mag_str = "2-3"
@@ -969,10 +971,10 @@ end
 
 
 begin
-    star_name = "coldhart94"
+    star_name = "hart94"
     star = Star(star_name)
     models_all = readdir("stars/$star_name")[2:end]
-    int_T_max = 9000
+    int_T_max = 8000
     # int_T_maxs = [7000,8000,9000,10000,11000]
     T_e_str = string(int_T_max)
     plt = plot()
@@ -1004,8 +1006,8 @@ begin
         end
     end
 
-    u, l = 5, 2
-    u2, l2 = 4, 2
+    u, l = 3, 2
+    # u2, l2 = 4, 2
     i = 40
 
     Ṁs, stat_eqwidths, nonstat_eqwidths = calceqwidths(models, u, l, i)
@@ -1090,4 +1092,61 @@ begin
     # end
 
     # gif(anim, "state.gif", fps = 1)
+end
+
+begin
+    T_max = 8000
+    T_str = string(T_max)
+    star_name = "hart94"
+    star = Star(star_name)
+    Ṁ_strs = ["75", "87", "95"]
+    titles = [L"\dot{M} = 3\cdot10^{-7}\ \mathrm{M_\odot/yr}", L"\dot{M} = 5\cdot10^{-9}\ \mathrm{M_\odot/yr}", L"\dot{M} = 3\cdot10^{-10}\ \mathrm{M_\odot/yr}"]
+    mag_str = "2-3"
+    f_plots = []
+    f_plot = plot(xlabel = L"r,\ \mathrm{R}_\star", ylabel = L"n_e/n_\mathrm{H}", legend = false, left_margin = 10mm, bottom_margin = 10mm)
+    for (Ṁ_str, title) in zip(Ṁ_strs, titles)
+
+        model_name = "$(star_name)_$(Ṁ_str)_$(T_str)_$(mag_str)"
+        model_1 = SolidMagnetosphere(star, "$(model_name)_stat_nonlocal")
+        model_2 = try
+            SolidMagnetosphere(star, "$(model_name)_nonstat_nonlocal")
+        catch
+            continue
+        end 
+
+        r_ms = model_1.r_m_grid
+        t_points = model_1.t_grid
+        t_lines = collect(range(0, 1, length = 100))
+
+        for r_m in r_ms
+            θs = @. asin(√(1/r_m)) + t_points * (π/2 - asin(√(1/r_m)))
+            r_points = @. r_m*sin(θs)^2
+            θs = @. asin(√(1/r_m)) + t_lines * (π/2 - asin(√(1/r_m)))
+            r_lines = @. r_m*sin(θs)^2
+
+            n_e_1_lines= @. 10^model_1.lgne_spl2d.(r_m, t_lines)
+            n_h_1_lines= @. 10^model_1.lgnh_spl2d.(r_m, t_lines)
+        
+            n_e_2_lines= @. 10^model_2.lgne_spl2d.(r_m, t_lines)
+            n_h_2_lines= @. 10^model_2.lgnh_spl2d.(r_m, t_lines)
+
+            n_e_1_points= @. 10^model_1.lgne_spl2d.(r_m, t_points)
+            n_h_1_points= @. 10^model_1.lgnh_spl2d.(r_m, t_points)
+        
+            n_e_2_points= @. 10^model_2.lgne_spl2d.(r_m, t_points)
+            n_h_2_points= @. 10^model_2.lgnh_spl2d.(r_m, t_points)
+
+
+            plot!(f_plot, r_lines, (@. n_e_1_lines/n_h_1_lines), lc = :black, left_margin = 5mm, title = title)
+            plot!(f_plot, r_lines, (@. n_e_2_lines/n_h_2_lines), lc = :black, ls = :dash)
+            # scatter!(f_plot, r_points, (@. n_e_1_points/n_h_1_points), mc = :black, ms = 3)
+            # scatter!(f_plot, r_points, (@. n_e_2_points/n_h_2_points), mc = :black, ms = 3)
+        end
+        push!(f_plots, f_plot)
+        f_plot = plot(xlabel = L"r,\ \mathrm{R}_\star", legend = false, bottom_margin = 5mm)
+        
+    end
+
+    plt = plot(f_plots..., layout = @layout([A B C]), size = (1000, 330))
+    savefig(plt, "hart94_23_f.pdf")
 end

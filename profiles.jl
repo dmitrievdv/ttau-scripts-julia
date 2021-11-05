@@ -1,12 +1,13 @@
 using TTauUtils
 
-for star_name in ["hart94", "coldhart94", "warmhart94"]
+for star_name in ["hart94"]
 # star_name = "coldhart94"
 star = Star(star_name)
 models = readdir("stars/$star_name")[2:end]#["hart94_85_8500_4-6_stat_nonlocal", "hart94_85_8500_4-6_nonstat_nonlocal"]
+models = ["hart94_90_8000_2-3_stat_nonlocal", "hart94_90_8000_2-3_nonstat_nonlocal"]
 
-transitions = [(5, 3), (7, 4), (4, 2), (3, 2)]
-i_angles = [10, 40, 80]
+transitions = [(3, 2)]
+i_angles = [0:30:90;]
 
 log = open("profiles.log", "w")
 
@@ -26,7 +27,7 @@ end
 
 # models = [models[1], models[2]]
 # i_angles = [10, 20]
-forced = false
+forced = true
 for model_name in models
     for i_ang in i_angles
         for (u,l) in transitions

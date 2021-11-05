@@ -15,21 +15,21 @@ function linename(u, l)
 end
 
 
-for star_name in ["coldhart94", "hart94", "warmhart94"]
+for star_name in ["hart94"]
 # star_name = "coldhart94"
 
 
 star = Star(star_name)
 savestar(star)
 
-int_10log10_Ṁs = [75:1:85;]
+int_10log10_Ṁs = [80:1:85;]
 Ṁ_strings = string.(int_10log10_Ṁs)
 Ṁs = @. 10^(-int_10log10_Ṁs/10)
 
 # Ṁs = [10^(-7.6), 10^(-7.7), 10^(-7.8), 10^(-7.9), 10^(-8.0), 10^(-8.1), 10^(-8.2), 10^(-8.3), 10^(-8.4)]
 # Ṁ_strings = ["76", "77", "78", "79", "80", "81", "82", "83", "84"]
 
-int_T_maxs = [7000:500:10000;]
+int_T_maxs = [7000:1000:8000;]
 T_max_strings = string.(int_T_maxs)
 T_maxs = 1.0*int_T_maxs
 

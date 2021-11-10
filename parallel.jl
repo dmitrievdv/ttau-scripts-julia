@@ -136,7 +136,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
 
         nonstat_ok = true
         mag_nonstat = if nonstat_exist
-            TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
+            TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
         else
             try 
                 local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)

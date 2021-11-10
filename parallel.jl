@@ -33,7 +33,7 @@ star = Star(star_name)
 r_mis = [6.0, 7.0, 8.0]
 mag_widths = [1.0, 2.0, 3.0]
 T_maxs = [8000:500:12000;]
-lg10_Ṁs = [-11:0.2:-8.5;]
+lg10_Ṁs = [-11:0.1:-8.5;]
 
 i_angs = [40:2:50;]
 u = 3; l =2
@@ -81,7 +81,7 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
 
     
 
-    if !isempty(stat_angles) | !isempty(nonstat_angles)
+    if (!isempty(stat_angles) | !isempty(nonstat_angles)) & !stat_exist
         push!(parameters, [Ṁ, T_max, r_mi, r_mo])
         push!(model_names, model_name)
         push!(stats_exist, stat_exist)
@@ -108,8 +108,8 @@ end
 n_proc_models = findprocmodels(n_proc, n_models)
 n_iters = n_models ÷ n_proc_models
 println(n_iters, " ", n_proc_models, " ", n_models)
-println(stats_angles)
-println(nonstats_angles)
+# println(stats_angles)
+# println(nonstats_angles)
 
 @time for iter_id = 1:n_iters
     profs = @distributed vcat for proc_iter_id = 1:n_proc_models
@@ -176,8 +176,9 @@ println(nonstats_angles)
         l = prof.lower_level
         # profile_name = "$(linename(u,l))_$i_ang"
         saveprofile(prof, profile_name)
-        println(profile_name)
+        # println(profile_name)
     end
+    println("$iter_id from $n_iters")
 end
 
 # @time for r_mi in r_mis

@@ -1,6 +1,7 @@
 using TTauUtils
 using Dierckx
 using Interpolations
+using Statistics
 
 function readobservation(filename :: AbstractString)
     r_obs = Float64[]
@@ -76,7 +77,7 @@ function readmodelgrid(star :: TTauUtils.AbstractStar, obs_file, deviationfuncti
     # reading models and parameters
     models = []
     n_models = length(model_names)
-    parameters = zeros(n_profiles, 6) # six parameters: lg Ṁ, T_max, r_mi, W (r_mo = r_mi + W), i
+    parameters = zeros(n_profiles, 6) # five parameters and error: lg Ṁ, T_max, r_mi, W (r_mo = r_mi + W), i, δ
     n_model = 0
     for i = 1:n_models
         model_name = model_names[i]
@@ -95,6 +96,46 @@ function readmodelgrid(star :: TTauUtils.AbstractStar, obs_file, deviationfuncti
         end
         println(model_name)
     end
+
+    # deleting not-on-grid points
+    n_par = length(parameters[1,1:end-1])
+    similar_points = zeros(Int, n_profiles)
+    similar_points_occurences = Int[]
+    similar_points_values = Int[]
+    for i=1:n_profiles
+        similar_pars = zeros(n_par)
+        for j=1:n_profiles
+            if j == i
+                similar_points[i] += 1
+            else
+                for k=1:n_par
+                    if abs(parameters[i, k] - parameters[j, k])/parameters[i,k] < 1e-5
+                        similar_points[i] += 1
+                        similar_pars[k] += 1
+                        break
+                    end
+                end
+            end
+        end
+        loc = findfirst(n -> n == similar_points[i], similar_points_values)
+        if isnothing(loc)
+            push!(similar_points_occurences, 1)
+            push!(similar_points_values, similar_points[i])
+        else
+            similar_points_occurences[loc] += 1
+        end
+    end
+
+    for (val, occ) in zip(similar_points_values, similar_points_occurences)
+        println(val, " ", occ)
+    end
+
+    # similar_points_summed = dropdims(sum(similar_points, dims = 2), dims = 2)
+    # n_grid = median(sum(similar_points_summed))
+
+    deleteat!(model_names, findall(n -> n < n_grid, similar_points_summed))
+    println(n_grid, " ", length(model_names))
+
     return parameters
 end
 

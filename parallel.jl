@@ -174,7 +174,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
         i_ang = round(Int, prof.orientation.i/π*180)
         u = prof.upper_level
         l = prof.lower_level
-        # profile_name = "$(linename(u,l))_$i_ang"
+        profile_name = "$(linename(u,l))_$i_ang"
         saveprofile(prof, profile_name)
         # println(profile_name)
     end

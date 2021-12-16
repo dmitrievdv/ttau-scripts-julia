@@ -31,12 +31,12 @@ star_name = "RZPsc"
 star = Star(star_name)
 
 r_mis = [6.0, 7.0, 8.0]
-mag_widths = [1.0, 2.0, 3.0]
+mag_widths = [1.0, 2.0, 3.0, 4.0]
 T_maxs = [8000:500:12000;]
-lg10_Ṁs = [-11:0.1:-8.5;]
+lg10_Ṁs = [-11:0.1:-9;]
 
-i_angs = [40:2:50;]
-u = 3; l =2
+i_angs = [70:2:90;]
+u = 3; l = 2
 
 parameters = Vector{Float64}[]
 
@@ -61,14 +61,14 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
     Ṁ = 10.0^lg10_Ṁ
     model_name = modelname(Ṁ, T_max, r_mi, r_mo)
     stat_exist = isfile("stars/$star_name/$(model_name)_stat_nonlocal/$(model_name)_stat_nonlocal.dat")
-    nonstat_exist = isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
+    nonstat_exist = false#isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
     stat_angles = Float64[]
     nonstat_angles = Float64[]
     stat_ignore = true; nonstat_ignore = true
     for i_ang in i_angs
         profile_name = "$(linename(u,l))_$i_ang"
         stat_profile_exist = isfile("stars/$star_name/$(model_name)_stat_nonlocal/$profile_name.dat")
-        nonstat_profile_exist = isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$profile_name.dat")
+        nonstat_profile_exist = false#isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$profile_name.dat")
         if !stat_profile_exist
             stat_ignore = false
             push!(stat_angles, i_ang)
@@ -81,7 +81,7 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
 
     
 
-    if (!isempty(stat_angles) | !isempty(nonstat_angles)) & !stat_exist
+    if (!isempty(stat_angles) | !isempty(nonstat_angles)) & (!stat_exist | !nonstat_exist)
         push!(parameters, [Ṁ, T_max, r_mi, r_mo])
         push!(model_names, model_name)
         push!(stats_exist, stat_exist)
@@ -139,7 +139,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
             TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
         else
             try 
-                local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
+                local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
                 addnonlocal(local_mag, progress_output = false)
             catch 
                 nonstat_ok = false

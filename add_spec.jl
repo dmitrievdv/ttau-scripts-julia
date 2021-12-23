@@ -1,6 +1,6 @@
 using TTauUtils
 
-function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix)
+function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix, prof_suffix)
     # Assuming there is a grid
     # getting all file names
     star_name = star.name
@@ -36,12 +36,17 @@ function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix)
             if length(split(profile_name, "_")) > 2
                 continue
             end
+            if isfile("stars/$star_name/$model_name/$(profile_name)_$(prof_suffix).dat")
+                continue
+            end
             profile = HydrogenProfile(star, model, profile_name)
-            prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/M_p5250g4.0z-0.25t1.0_a+0.10c0.00n0.00o+0.10r0.00s0.00_VIS.spec")
-            saveprofile(prof_spec, "$(profile_name)_phot2crude")
+            prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat")
+            saveprofile(prof_spec, "$(profile_name)_$prof_suffix")
+            prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true)
+            saveprofile(prof_spec, "$(profile_name)_$(prof_suffix)-sini")
         end
     end
 end
 
-addphotspectomodels(Star("RZPsc"), "stat_nonlocal")
-addphotspectomodels(Star("RZPsc"), "nonstat_nonlocal")
+addphotspectomodels(Star("RZPsc"), "stat_nonlocal", "phot3crude")
+addphotspectomodels(Star("RZPsc"), "nonstat_nonlocal", "phot3crude")

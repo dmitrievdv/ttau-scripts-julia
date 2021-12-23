@@ -93,9 +93,9 @@ end
 
 
 begin
-    star_name = "hart94"
+    star_name = "RZPsc"
     star = Star(star_name)
-    model_firstname = "$(star_name)_90_8000_2-3"
+    model_firstname = "95_8500_6-9"
     model_name_1 = "$(model_firstname)_stat_nonlocal"
     model_name_2 = "$(model_firstname)_nonstat_nonlocal"
     model_1 = SolidMagnetosphere(star, model_name_1)
@@ -108,10 +108,10 @@ begin
         nonstat_undef = true
     end
 
-    u, l = 3, 2
+    u, l = 4, 2
 
     line_name = linename(u, l)
-    i_angs = [0:30:90;]
+    i_angs = [40:5:60;]
     plts = []
     for i_ang in i_angs
         prof_1 = HydrogenProfile(star, model_1, "$(line_name)_$i_ang")
@@ -125,8 +125,8 @@ begin
         end
         push!(plts, plt)
     end
-    prof_plot = plot(plts..., layout = @layout([A B; C D]), size = (800, 800), margin = 5mm)
-    savefig(prof_plot, "hart94_90_8000_2-3-Ha.pdf")
+    prof_plot = plot(plts..., layout = @layout([A B C D E]), size = (2000, 400), margin = 5mm)
+    # savefig(prof_plot, "hart94_90_8000_2-3-Ha.pdf")
 end
 
 begin 

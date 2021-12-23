@@ -30,12 +30,12 @@ end
 star_name = "RZPsc"
 star = Star(star_name)
 
-r_mis = [6.0, 7.0, 8.0]
-mag_widths = [1.0, 2.0, 3.0, 4.0]
+r_mis = [5.0:1.0:10.0;]
+mag_widths = [1.0:1.0:5.0;]
 T_maxs = [8000:500:12000;]
 lg10_Ṁs = [-11:0.1:-9;]
 
-i_angs = [70:2:90;]
+i_angs = [40:2:60;]
 u = 3; l = 2
 
 parameters = Vector{Float64}[]
@@ -61,7 +61,7 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
     Ṁ = 10.0^lg10_Ṁ
     model_name = modelname(Ṁ, T_max, r_mi, r_mo)
     stat_exist = isfile("stars/$star_name/$(model_name)_stat_nonlocal/$(model_name)_stat_nonlocal.dat")
-    nonstat_exist = false#isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
+    nonstat_exist = isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
     stat_angles = Float64[]
     nonstat_angles = Float64[]
     stat_ignore = true; nonstat_ignore = true
@@ -81,7 +81,7 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
 
     
 
-    if (!isempty(stat_angles) | !isempty(nonstat_angles)) & (!stat_exist | !nonstat_exist)
+    if (!isempty(stat_angles) | !isempty(nonstat_angles)) & !(stat_ignore & nonstat_ignore)
         push!(parameters, [Ṁ, T_max, r_mi, r_mo])
         push!(model_names, model_name)
         push!(stats_exist, stat_exist)
@@ -106,15 +106,21 @@ function findprocmodels(n_proc, n_models)
 end
 
 n_proc_models = findprocmodels(n_proc, n_models)
-n_iters = n_models ÷ n_proc_models
+n_iters = n_models ÷ n_proc
 println(n_iters, " ", n_proc_models, " ", n_models)
 # println(stats_angles)
 # println(nonstats_angles)
 
-@time for iter_id = 1:n_iters
-    profs = @distributed vcat for proc_iter_id = 1:n_proc_models
+@time for iter_id = 0:n_iters
+    proc_iter_start = iter_id*n_proc + 1
+    proc_iter_end = (iter_id+1)*n_proc
+    if proc_iter_end > n_models
+        proc_iter_end = n_models
+    end
+#     println("$proc_iter_start $proc_iter_end")
+    profs = @distributed vcat for model_id = proc_iter_start:proc_iter_end
         proc_profs = []
-        model_id = n_proc_models*(iter_id-1) + proc_iter_id
+#         model_id = n_proc_models*(iter_id-1) + proc_iter_id
         model_name = model_names[model_id]
         Ṁ, T_max, r_mi, r_mo = parameters[model_id]
         stat_exist = stats_exist[model_id]; nonstat_exist = nonstats_exist[model_id]
@@ -148,35 +154,35 @@ println(n_iters, " ", n_proc_models, " ", n_models)
 
         if stat_ok
             for i_ang in stat_angles
-                # println(profile_name)
+#                 println(profile_name)
                 prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
                 push!(proc_profs, prof)
-                # println(prof.orientation)
+#                 println(prof.orientation)
             end
         end
 
         if nonstat_ok
             for i_ang in nonstat_angles
-                # profile_name = "$(linename(u,l))_$i_ang"
-                # println(profile_name)
+#                 profile_name = "$(linename(u,l))_$i_ang"
+#                 println(profile_name)
                 prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
                 push!(proc_profs, prof)
-                # println(prof.orientation)
+#                 println(prof.orientation)
             end
         end
 
 
-        # println("$model_id $iter_id $model_name")
+#         println("$model_id $iter_id $model_name")
         proc_profs
     end
     println(iter_id)
     for prof in profs
         i_ang = round(Int, prof.orientation.i/π*180)
-        u = prof.upper_level
-        l = prof.lower_level
+#         u = prof.upper_level
+#         l = prof.lower_level
         profile_name = "$(linename(u,l))_$i_ang"
         saveprofile(prof, profile_name)
-        # println(profile_name)
+#         println(profile_name)
     end
     println("$iter_id from $n_iters")
 end

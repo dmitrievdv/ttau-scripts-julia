@@ -131,7 +131,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     n_model = 0
     # gaussian
     # hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))
-    fit_par = [0.6,50.0,10.0]
+    fit_par = [0.0,0.0,0.0]
     names = Vector{String}[]
     for i = 1:n_models
         model_name = model_names[i]
@@ -211,8 +211,8 @@ end
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
 star = Star("RZPsc")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot2crude")
-# nonstat_pars, nonstat_names = readmodels(star, "observation.dat", "nonstat_nonlocal", prof_suffix = "phot")
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude-sini")
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude-sini")
 # δs = pars[:,8]
 min_stat_δ = minimum(stat_pars[:,end])
 # min_nonstat_δ = minimum(nonstat_pars[:,end])
@@ -332,7 +332,7 @@ r_mis = [6.0:1:8;]
 angs = [40:5.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
-# gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names)
+gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names); ""
 
 
 function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
@@ -344,6 +344,17 @@ function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
     heatmap(T_maxs, lgṀs, log10.(gridded_pars[9,:,:,i_rm,i_W,i_ang]), title = title, clims = (-2, -1.2))
 end
 
+function plotδheat(gridded_pars, dims, xs, ys; clims = (0, 0.1))
+    δ_i = size(gridded_pars)[1]
+    griddedδ = selectdim(gridded_pars, 1, δ_i)
+    hm_size = size(griddedδ, dims[1]), size(griddedδ, dims[2])
+    n_1, n_2 = hm_size
+    mindims = deleteat!([1:ndims(griddedδ);], dims)
+    println(mindims)
+    println(hm_size)
+    hm = reshape(minimum(griddedδ, dims = mindims), hm_size)
+    heatmap(ys, xs, hm, clims = clims)
+end
 
 function plotδfromgrid(gridded_pars, gridded_names, i_rm, i_W, i_ang, δ_cut)
     local names = vec(gridded_names[:,:,i_rm, i_W, i_ang])

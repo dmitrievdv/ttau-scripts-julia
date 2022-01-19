@@ -2,12 +2,12 @@ using Printf
 using TTauUtils
 
 star = Star("RZPsc")
-ν_Ha = TTauUtils.HydrogenPopulations.linefrequency(3,2)
-λ_Ha = 2.998e18/ν_Ha
-I_c = TTauUtils.starcontinuum(star, ν_Ha)
-I_c_syn = I_c*π*2.998e18/λ_Ha^2
+ν_Hb = TTauUtils.HydrogenPopulations.linefrequency(3,2)
+λ_Hb = 2.998e18/ν_Hb
+I_c = TTauUtils.starcontinuum(star, ν_Hb)
+I_c_syn = I_c*π*2.998e18/λ_Hb^2
 
-obs_file = "spec/RZ_Psc_Ha_syn_unwid.txt"
+obs_file = "spec/RZ_Psc_Hb_syn_unwid.txt"
 
 λ_obs_data = Float64[]
 r_obs_data = Float64[]
@@ -33,7 +33,7 @@ end
 # plot(v_obs, r_obs)
 
 
-out = open("spec/RZ_Psc_Ha_syn_unwid_corr.dat", "w")
+out = open("spec/RZ_Psc_Hb_syn_unwid_corr.dat", "w")
 
 for (λ,r) in zip(λ_obs_data, r_obs_data)
     @printf(out, "%.4f %.5e %.5f\n", λ, r*I_c_syn, r)

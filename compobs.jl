@@ -211,8 +211,8 @@ end
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
 star = Star("RZPsc")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude-sini")
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude-sini")
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
 # δs = pars[:,8]
 min_stat_δ = minimum(stat_pars[:,end])
 # min_nonstat_δ = minimum(nonstat_pars[:,end])
@@ -301,7 +301,7 @@ function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
     n_W = length(Ws)
     n_ang = length(angs)
     n_pars = length(pars[1,:])
-    gridded_pars = zeros(n_pars, n_Ṁ, n_T, n_rmi, n_W, n_ang)
+    gridded_pars = fill(0.0, (n_pars, n_Ṁ, n_T, n_rmi, n_W, n_ang))
     gridded_names = fill(["",""], n_Ṁ, n_T, n_rmi, n_W, n_ang)
     for i=1:n_models
         Ṁ, T_max, r_mi, W, ang = pars[i,1:5]
@@ -327,9 +327,9 @@ end
 
 lgṀs = [-11:0.1:-9;]
 T_maxs = [8e3:500:12000;]
-Ws = [1.0:1:4;]
-r_mis = [6.0:1:8;]
-angs = [40:5.0:60;]
+Ws = [1.0:1:5;]
+r_mis = [5.0:1:10;]
+angs = [40:2.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
 gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names); ""
@@ -360,6 +360,67 @@ function plotδfromgrid(gridded_pars, gridded_names, i_rm, i_W, i_ang, δ_cut)
     local names = vec(gridded_names[:,:,i_rm, i_W, i_ang])
     local pars = transpose(reshape(vec(gridded_pars[:,:,:,i_rm, i_W, i_ang]), (9, length(vec(gridded_pars[1,:,:,i_rm, i_W, i_ang])))))
     plotδ(pars, names, 0.02)
+end
+
+function addHb(star, model_name, profile_name; sinicorr = true)
+    model = loadmodel(star, model_name)
+    prof_Ha = HydrogenProfile(star, model, profile_name)
+    prof_Ha_nos = HydrogenProfile(star, model, profile_name[1:5])
+    prof_Ha = TTauUtils.addphotosphespecdoppler(prof_Ha_nos, 0.05, "spec/M_p5250g4.0z-5.00t1.0_a+0.40c0.00n0.00o+0.40r0.00s0.00_VIS.spec", sinicorr = sinicorr, Δλ = 1.98)
+    sinicorr = occursin("sini", profile_name)
+    i = parse(Float64, split(profile_name, "_")[2])
+    prof_Hb_nos = HydrogenProfileDoppler(model, 4, 2, 1.0*i, 0.05, 0.05, 0.1, 200)
+    prof_Hb = TTauUtils.addphotosphespecdoppler(prof_Hb_nos, 0.05, "spec/M_p5250g4.0z-5.00t1.0_a+0.40c0.00n0.00o+0.40r0.00s0.00_VIS.spec", sinicorr = sinicorr, Δλ = 1.4)
+    Hb_name = "Hb"*profile_name[3:end]
+    saveprofile(prof_Hb, Hb_name)
+    v_Ha_mod, r_Ha_mod = getvandr(prof_Ha)
+    v_Hb_mod, r_Hb_mod = getvandr(prof_Hb)
+    v_Ha_nos, r_Ha_nos = getvandr(prof_Ha_nos)
+    v_Hb_nos, r_Hb_nos = getvandr(prof_Hb_nos)
+    v_Ha_obs, r_Ha_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
+    v_Hb_obs, r_Hb_obs = readobservation("spec/RZPsc_Hb_16-11-2013_proc.dat")
+    Ha_plt = plot(v_Ha_obs, r_Ha_obs, legend = false)
+    plot!(Ha_plt, v_Ha_mod, r_Ha_mod .+ 0.01)
+    plot!(Ha_plt, v_Ha_nos, r_Ha_nos .+ 0.01)
+    Hb_plt = plot(v_Hb_obs, r_Hb_obs, legend = false)
+    plot!(Hb_plt, v_Hb_mod, r_Hb_mod .- 0.03)
+    plot!(Hb_plt, v_Hb_nos, r_Hb_nos .- 0.03)
+    plot(Ha_plt, Hb_plt, layout = @layout([A B]), size = (1400, 700), dpi = 600)
+end
+
+function plotgauss(pars, names, δ_cut; la = 0.1)
+    
+    plt = plot(clims = (-11,-9))
+    # min_δ = min(min_stat_δ, min_nonstat_δ)
+    best_names = []
+    best_pars = []
+    min_δ = minimum(pars[:,end])
+    δ_range = δ_cut - min_δ
+    alphacolor(δ) = (1.0 - (δ - min_δ)/δ_range)
+    for i=1:length(names)
+        model_name, profile_name = names[i]
+        type = split(model_name, '_')[4]
+        # if type == "stat"
+        #     min_δ = min_stat_δ
+        # elseif type == "nonstat"
+        #     min_δ = min_nonstat_δ
+        # end
+        if pars[i,end] < δ_cut
+            # println(names[i], " ", pars[i,5:end])
+            # push!(plots, plt)
+            scatter!(plt, [pars[i,6]], [pars[i,7]], marker_z=log10.(pars[i,1]), ma = (alphacolor(pars[i,end]))^(2), label = false)
+            push!(best_names, [model_name, profile_name])
+            push!(best_pars, [i; pars[i,:]])
+        end
+    end
+    # best_pars = hcat(best_pars...)
+    # scatter!(plt, best_pars[7,:], best_pars[8,:], marker_z=log10.(best_pars[2,:]))
+    # show(best_pars)
+    # for (name, pars) in zip(best_names, best_pars)
+    #     println(name)
+    #     println(pars)
+    # end
+    plt
 end
 # trunc = pars[δ .< 0.02, :]
 # n = size(trunc)[1]

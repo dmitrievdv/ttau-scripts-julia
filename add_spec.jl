@@ -1,4 +1,5 @@
 using TTauUtils
+using SMTPClient
 
 function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix, prof_suffix)
     # Assuming there is a grid
@@ -29,24 +30,36 @@ function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix, prof_suffix
         model = TTauUtils.Models.loadmodel(star, model_name)
         lg10Ṁ = model.Mdot; T_max = model.T_max; r_mi = model.geometry.r_mi; W = model.geometry.r_mo - r_mi
         profile_files = readdir("stars/$star_name/$model_name")
+        n_prof = 0
         deleteat!(profile_files, findall(name -> name == "$model_name.dat", profile_files))
+        println(model_name)
         for k = 1:length(profile_files)
-            println(model_name)
             profile_name = profile_files[k][1:end-4]
-            if length(split(profile_name, "_")) > 2
-                continue
+            prof_with_spec = (length(split(profile_name, "_")) > 2)
+            spec_already_added = isfile("stars/$star_name/$model_name/$(profile_name)_$(prof_suffix).dat")
+            if !(prof_with_spec | spec_already_added)
+                n_prof += 1
+                profile = HydrogenProfile(star, model, profile_name)
+                println(profile_name)
+                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat")
+                saveprofile(prof_spec, "$(profile_name)_$prof_suffix")
+                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true)
+                saveprofile(prof_spec, "$(profile_name)_$(prof_suffix)-sini")
             end
-            if isfile("stars/$star_name/$model_name/$(profile_name)_$(prof_suffix).dat")
-                continue
-            end
-            profile = HydrogenProfile(star, model, profile_name)
-            prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat")
-            saveprofile(prof_spec, "$(profile_name)_$prof_suffix")
-            prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true)
-            saveprofile(prof_spec, "$(profile_name)_$(prof_suffix)-sini")
         end
     end
 end
 
 addphotspectomodels(Star("RZPsc"), "stat_nonlocal", "phot3crude")
 addphotspectomodels(Star("RZPsc"), "nonstat_nonlocal", "phot3crude")
+
+opt = SendOptions(
+  isSSL = true,
+  username = "my.calc.results@gmail.com",
+  passwd = "vuN2jtpUXgApc6t")
+#Provide the message body as RFC5322 within an IO
+body = IOBuffer("Photospheric profile added")
+url = "smtps://smtp.gmail.com:465"
+rcpt = ["<dmitrievdv242@gmail.com>"]
+from = "<my.calc.results@gmail.com>"
+resp = send(url, rcpt, from, body, opt)

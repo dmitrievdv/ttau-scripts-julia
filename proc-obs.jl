@@ -1,6 +1,6 @@
 using Printf
 
-obs_file = "spec/2013_10_21_Ha_helioV2.txt"
+obs_file = "spec/2013_11_16_Hbet_corr.asc"
 
 λ_obs_data = Float64[]
 r_obs_data = Float64[]
@@ -18,7 +18,7 @@ for line in lines
     end 
 end
 
-v_obs_data = @. (λ_obs_data - 6562.8)/6562.8*2.998e5
+v_obs_data = @. (λ_obs_data - 4861.3)/4861.3*2.998e5
 
 v_obs = v_obs_data[(v_obs_data .> -600) .& (v_obs_data .< 600)]
 r_obs = r_obs_data[(v_obs_data .> -600) .& (v_obs_data .< 600)]
@@ -26,7 +26,7 @@ r_obs = r_obs_data[(v_obs_data .> -600) .& (v_obs_data .< 600)]
 plot(v_obs, r_obs)
 
 
-out = open("spec/RZPsc_21-10-2013_proc.dat", "w")
+out = open("spec/RZPsc_Hb_16-11-2013_proc.dat", "w")
 
 for (v,r) in zip(v_obs, r_obs)
     @printf(out, "%.4f %.5f\n", v, r)

@@ -1,4 +1,5 @@
 using Distributed
+using SMTPClient
 
 n_proc = 6
 addprocs(n_proc)
@@ -187,69 +188,13 @@ println(n_iters, " ", n_proc_models, " ", n_models)
     println("$iter_id from $n_iters")
 end
 
-# @time for r_mi in r_mis
-#     for mag_width in mag_widths
-#         r_mo = r_mi + mag_width
-#         mag_string = "$(round(Int, r_mi))-$(round(Int, r_mo))"
-#         for T_max in T_maxs
-#             T_string = string(round(Int, T_max))
-#             profs = @distributed vcat for lg10_Ṁ in lg10_Ṁs
-#                 proc_profs = []
-#                 Ṁ_string = string(round(Int, -lg10_Ṁ*10))
-#                 Ṁ = 10.0^lg10_Ṁ
-#                 model_name = "$(Ṁ_string)_$(T_string)_$(mag_string)"
-#                 stat_ok = true
-#                 nonstat_ok = true
-#                 mag_stat = if !isfile("stars/$star_name/$(model_name)_stat_nonlocal/$(model_name)_stat_nonlocal.dat")
-#                     try 
-#                         local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
-#                         addnonlocal(local_mag, progress_output = false)
-#                     catch 
-#                         stat_ok = false
-#                     end
-#                 else
-#                     TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
-#                 end
-#                 println(mag_stat.Mdot)
-#                 mag_nonstat = if !isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
-#                     try 
-#                         local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
-#                         addnonlocal(local_mag, progress_output = false)
-#                     catch 
-#                         nonstat_ok = false
-#                     end
-#                 else
-#                     nonstat_ok = true
-#                     TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
-#                 end
-#                 println(mag_nonstat.Mdot)
-#                 if stat_ok
-#                     for i_ang in i_angs
-#                         profile_name = "$(linename(u,l))_$i_ang"
-#                         if !isfile("stars/$star_name/$(model_name)_stat_nonlocal/$profile_name.dat")
-#                             prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
-#                             push!(proc_profs, prof)
-#                             println(prof.orientation)
-#                         end
-#                     end
-#                 end
-#                 if nonstat_ok
-#                     for i_ang in i_angs
-#                         if !isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$profile_name.dat")
-#                             prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
-#                             push!(proc_profs, prof)
-#                             println(prof.orientation)
-#                         end
-#                     end
-#                 end
-#                 proc_profs
-#             end
-#             for prof in profs
-#                 i_ang = round(Int, prof.orientation.i/π*180)
-#                 u = prof.upper_level
-#                 l = prof.lower_level
-#                 saveprofile(prof, "$(linename(u,l))_$i_ang")
-#             end
-#         end
-#     end
-# end
+opt = SendOptions(
+  isSSL = true,
+  username = "my.calc.results@gmail.com",
+  passwd = "vuN2jtpUXgApc6t")
+#Provide the message body as RFC5322 within an IO
+body = IOBuffer("Models computed")
+url = "smtps://smtp.gmail.com:465"
+rcpt = ["<dmitrievdv242@gmail.com>"]
+from = "<my.calc.results@gmail.com>"
+resp = send(url, rcpt, from, body, opt)

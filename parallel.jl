@@ -134,7 +134,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
             TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
         else
             try 
-                local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
+                local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
                 addnonlocal(local_mag, progress_output = false)
             catch 
                 stat_ok = false
@@ -146,7 +146,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
             TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
         else
             try 
-                local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 40, progress_output = false)
+                local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
                 addnonlocal(local_mag, progress_output = false)
             catch 
                 nonstat_ok = false
@@ -156,7 +156,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
         if stat_ok
             for i_ang in stat_angles
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
+                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end
@@ -166,7 +166,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
             for i_ang in nonstat_angles
 #                 profile_name = "$(linename(u,l))_$i_ang"
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.1, 0.1, 200, progress_output = false)
+                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end

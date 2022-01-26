@@ -149,14 +149,19 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             end
             profile = HydrogenProfile(star, model, profile_name)
             v_mod, r_mod = getvandr(profile)
-            r_mod_obs = velocitiesobstomod(v_obs, r_obs, v_mod, r_mod)
-            r_to_fit = r_obs .- r_mod_obs 
-            fit_par = [0.6,50.0,10.0]
-            fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
+            r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+            r_to_fit = r_obs_mod .- r_mod 
+            # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
+            # r_to_fit = r_obs .- r_mod_obs 
+            fit_par = [0.2,20.0,1.0]
+            # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
+            fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par)
             fit_par = coef(fit) # [0.0,0.0]
             println(fit_par)
-            res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
+            # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
+            res = abs.(r_obs_mod .- r_mod .+ hotspot_gauss_model(v_mod, fit_par))
+            # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
+            δ = sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0)
             i_ang = profile.orientation.i
             n_model += 1
             if n_model > n_profiles
@@ -228,13 +233,14 @@ function plotmodel(pars, names, id)
     profile_nophot = HydrogenProfile(star, model, profile_name[1:5])
     profile = HydrogenProfile(star, model, profile_name)
     v_mod, r_mod = getvandr(profile)
+    r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
     v_mag, r_mag = getvandr(profile_nophot)
     r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[id,6:end-1])
     plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "all")
     plot!(plt, v_mod, hotspot_gauss_model(v_mod, pars[id,6:end-1]) .+ 1, lc = :red, la = 0.5, ls =:dash, label = "hotspot")
     plot!(plt, v_mod, r_mod, lc = :orange, ls = :dash, la = 0.5, label = "mag + phot")
     plot!(plt, v_mag, r_mag, lc = :blue, ls = :dash, la = 0.5, label = "mag")
-    plot!(plt, v_obs, r_obs, xlims = (-500, 600), ylims = (0.4, 1.4), lc = :black, label = "obs")
+    plot!(plt, v_mod, r_obs_mod, xlims = (-500, 600), ylims = (0.4, 1.4), lc = :black, label = "obs")
     r_obs_mod = velocitiesobstomod(v_mod, r_gauss_mod, v_obs, r_obs)
     plot!(plt, v_mod, r_gauss_mod .- r_obs_mod .+ 1, lc = :black, la = 0.3, label = "mod - obs")
 end
@@ -274,17 +280,19 @@ function plotδ(pars, names, δ_cut; la = 0.1)
             profile = HydrogenProfile(star, model, profile_name)
             v_mod, r_mod = getvandr(profile)
             v_mag, r_mag = getvandr(profile_nophot)
-            r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[i,6:end-1])
+            r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, abs.(pars[i,6:end-1]))
+            r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
             plot!(plt, v_mod, r_gauss_mod, lc = :red, la = la)
-            plot!(plt, v_mod, hotspot_gauss_model(v_mod, pars[i,6:end-1]) .+ 1, lc = :red, ls =:dash, la = la)
+            plot!(plt, v_mod, hotspot_gauss_model(v_mod, abs.(pars[i,6:end-1])) .+ 1, lc = :red, ls =:dash, la = la)
             plot!(plt, v_mod, r_mod, lc = :orange, ls = :dash, la = la)
             plot!(plt, v_mag, r_mag, lc = :blue, ls = :dash, la = la)
+            plot!(plt, v_mod, r_obs_mod, xlims = (-500, 600), ylims = (0.4, 1.2), lc = :black)
             # push!(plots, plt)
             push!(best_names, [model_name, profile_name])
             push!(best_pars, [i; pars[i,:]])
         end
     end
-    plot!(plt, v_obs, r_obs, xlims = (-500, 600), ylims = (0.4, 1.2), lc = :black)
+    # plot!(plt, v_obs, r_obs, xlims = (-500, 600), ylims = (0.4, 1.2), lc = :black)
 
     for (name, pars) in zip(best_names, best_pars)
         println(name)
@@ -301,7 +309,7 @@ function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
     n_W = length(Ws)
     n_ang = length(angs)
     n_pars = length(pars[1,:])
-    gridded_pars = fill(0.0, (n_pars, n_Ṁ, n_T, n_rmi, n_W, n_ang))
+    gridded_pars = fill(1.0, (n_pars, n_Ṁ, n_T, n_rmi, n_W, n_ang))
     gridded_names = fill(["",""], n_Ṁ, n_T, n_rmi, n_W, n_ang)
     for i=1:n_models
         Ṁ, T_max, r_mi, W, ang = pars[i,1:5]

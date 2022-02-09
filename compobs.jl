@@ -88,7 +88,7 @@ function hotspot_voigt_model(x, p)
     @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.01
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ 0.01
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
 
 function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "")
     # Assuming there is a grid
@@ -153,13 +153,13 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             r_to_fit = r_obs_mod .- r_mod 
             # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
             # r_to_fit = r_obs .- r_mod_obs 
-            fit_par = [0.2,20.0,1.0]
+            fit_par = [0.2,20.0,0.05]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
             fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par)
             fit_par = coef(fit) # [0.0,0.0]
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = abs.(r_obs_mod .- r_mod .+ hotspot_gauss_model(v_mod, fit_par))
+            res = abs.(r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par))
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
             δ = sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0)
             i_ang = profile.orientation.i
@@ -273,6 +273,7 @@ function plotδ(pars, names, δ_cut; la = 0.1)
         # elseif type == "nonstat"
         #     min_δ = min_nonstat_δ
         # end
+        if pars[i,2] < 10000; continue; end
         if pars[i,end] < δ_cut
             println(names[i], " ", pars[i,5:end])
             model = TTauUtils.Models.loadmodel(star, model_name)
@@ -334,9 +335,9 @@ end
 
 
 lgṀs = [-11:0.1:-9;]
-T_maxs = [8e3:500:12000;]
+T_maxs = [10e3:500:12000;]
 Ws = [1.0:1:5;]
-r_mis = [5.0:1:10;]
+r_mis = [2.0:1:10;]
 angs = [40:2.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""

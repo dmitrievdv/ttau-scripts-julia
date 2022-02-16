@@ -159,9 +159,9 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             fit_par = coef(fit) # [0.0,0.0]
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = abs.(r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par))
+            res = (r_obs_mod .- r_mod) .^ 2# .- hotspot_gauss_model(v_mod, fit_par))
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
-            δ = sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0)
+            δ = (sum(sqrt.(res[abs.(v_mod) .> 30]))/length(abs.(v_mod) .> 30))
             i_ang = profile.orientation.i
             n_model += 1
             if n_model > n_profiles
@@ -436,3 +436,38 @@ end
 # for i=1:n
 #     println(trunc[i,:])
 # end
+
+function getmeananderrors(gridded_pars, lgṀ, pars, σ)
+    n_p = length(pars)
+    means = zeros(n_p)
+    fixed_mean = zeros(n_p)
+    err = zeros(n_p)
+    fixed_err = zeros(n_p)
+    sum_invδ = 0.0
+    fixed_sum_invδ = 0.0
+    δs = gridded_pars[end, :,:,:,:,:]
+    # println(size(δs))
+    for index in keys(δs)
+        δ = δs[index]
+        # println("lol")
+        sum_invδ += 1/δ
+        for par_i = 1:n_p
+            # println("$index")
+            i = index[par_i]
+            # println("kek")
+            cur_par = pars[par_i]
+            # println("$cur_par $i")
+            means[par_i] = means[par_i] + cur_par[i] / δ
+            # println("$cur_par $i")
+        end
+    end
+    means = means / sum_invδ
+    for index in keys(δs)
+        δ = δs[index]
+        for par_i = 1:n_p
+            err[par_i] += (pars[par_i][index[par_i]]-means[par_i])^2/δ
+        end
+    end
+    err = @. √(err/sum_invδ)
+    return means, err
+end

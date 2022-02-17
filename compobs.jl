@@ -6,6 +6,7 @@ using LsqFit
 using Plots
 using LaTeXStrings
 using SpecialFunctions
+using Printf
 
 function readobservation(filename :: AbstractString)
     r_obs = Float64[]
@@ -140,8 +141,9 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
         profile_files = readdir("stars/$star_name/$model_name")
         deleteat!(profile_files, findall(name -> name == "$model_name.dat", profile_files))
         for k = 1:length(profile_files)
-            println(model_name)
+            # println("$model_name $star_name ")
             profile_name = profile_files[k][1:end-4]
+            println("$model_name $star_name $profile_name")
             if prof_suffix != "" 
                 if split(profile_name, "_")[end] != prof_suffix
                     continue
@@ -159,9 +161,9 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             fit_par = coef(fit) # [0.0,0.0]
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = abs.(r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par))
+            res = (r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par)) .^ 2
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
-            δ = sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0)
+            δ = sqrt(sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0))
             i_ang = profile.orientation.i
             n_model += 1
             if n_model > n_profiles
@@ -335,9 +337,9 @@ end
 
 
 lgṀs = [-11:0.1:-9;]
-T_maxs = [10e3:500:12000;]
+T_maxs = [1e4:250:13000;]
 Ws = [1.0:1:5;]
-r_mis = [2.0:1:10;]
+r_mis = [4.0:1:10;]
 angs = [40:2.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
@@ -436,3 +438,124 @@ end
 # for i=1:n
 #     println(trunc[i,:])
 # end
+dispersion(xs, x0) = sqrt(sum((xs .- x0) .^ 2)/length(xs))
+
+function getmeananderrors(gridded_pars, pars)
+    n_p = length(pars)
+    means = zeros(n_p+3)
+    err = zeros(n_p+3)
+    sum_weights = 0.0
+    δs = gridded_pars[end, :,:,:,:,:]
+    σ = minimum(δs)
+    # println(size(δs))
+    for index in keys(δs)
+        δ = δs[index]
+        if δ < √2*σ
+            weight = 1/δ
+            #weight = exp(-((δ-σ)/σ)^2)
+            # δ = 1
+            # println("lol")
+            sum_weights += weight
+            for par_i = 1:n_p
+                i = index[par_i]
+                cur_par = pars[par_i]
+                means[par_i] = means[par_i] + cur_par[i] * weight
+            end
+            for par_i = n_p+1:n_p+3
+                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]][1]
+                means[par_i] = means[par_i] + cur_par * weight
+            end
+        end
+    end
+    means = means / sum_weights
+    for index in keys(δs)
+        δ = δs[index]
+        if δ < √2*σ
+            weight = 1/δ
+            # weight = exp(-((δ-σ)/σ)^2)
+            # δ = 1
+            for par_i = 1:n_p
+                err[par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
+            end
+            for par_i = n_p+1:n_p+3
+                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]][1]
+                err[par_i] = (cur_par-means[par_i])^2 * weight
+            end
+        end
+    end
+    err = @. √(err/sum_weights)
+
+    unierr = dispersion.(pars, means[1:n_p])
+
+    parnames = ["lg Ṁ", "T_max", "r_mi", "W", "i", "A", "v", "f"]
+
+    for i=1:n_p
+        @printf("%6s = %8.2f ± %6.2f (±%6.2f) [%.2f]\n", parnames[i], means[i], err[i], unierr[i], unierr[i]/err[i])
+    end
+
+    for i=n_p+1:n_p+3
+        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[i])
+    end
+
+    return means, err
+end
+
+function getmeananderrors(gridded_pars, lgṀ, pars)
+    i_lgṀ = findall(x -> abs(x - lgṀ) < 0.05, pars[1])
+    n_p = length(pars)
+    means = zeros(n_p+3)
+    err = zeros(n_p+3)
+    unierr = zeros(n_p+3)
+    sum_weights = 0.0
+    δs = gridded_pars[end, i_lgṀ,:,:,:,:]
+    σ = minimum(δs)
+    # println(size(δs))
+    for index in keys(δs)
+        δ = δs[index]
+        println(index)
+        if δ < √2*σ
+            # δ = 1
+            weight = 1/δ
+            sum_weight += weight
+            for par_i = 2:n_p
+                i = index[par_i]
+                cur_par = pars[par_i]
+                means[par_i] = means[par_i] + cur_par[i] / δ
+            end
+            for par_i = n_p+1:n_p+3
+                cur_par = gridded_pars[par_i, i_lgṀ,index[2],index[3],index[4],index[5]][1]
+                means[par_i] = means[par_i] + cur_par / δ
+            end
+        end
+    end
+    means = means / sum_invδ
+    for index in keys(δs)
+        δ = δs[index]
+        if δ < √2*σ
+            # δ = 1
+            for par_i = 2:n_p
+                err[par_i] += (pars[par_i][index[par_i]]-means[par_i])^2/δ
+            end
+            for par_i = n_p+1:n_p+3
+                cur_par = gridded_pars[par_i, i_lgṀ,index[2],index[3],index[4],index[5]][1]
+                err[par_i] = (cur_par-means[par_i])^2/δ
+            end
+        end
+    end
+    err = @. √(err/sum_invδ)
+
+    unierr[1:n_p] = dispersion.(pars, means[1:n_p])
+
+    parnames = ["lg Ṁ", "T_max", "r_mi", "W", "i", "A", "v", "f"]
+
+    @printf("lg Ṁ = %6.2f \n", lgṀ)
+    for i=2:n_p
+        @printf("%6s = %8.2f ± %6.3f (±%6.3f)\n", parnames[i], means[i], err[i], unierr[i])
+    end
+
+    for i=n_p+1:n_p+3
+        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[i])
+    end
+
+    return means, err
+end

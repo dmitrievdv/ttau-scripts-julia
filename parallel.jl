@@ -31,8 +31,8 @@ end
 star_name = "RZPsc"
 star = Star(star_name)
 
-r_mis = [4.0:1:10.0;]
-mag_widths = [1.0:1:5.0;]
+r_mis = [4.0:1:14.0;]
+mag_widths = [1.0:1:8.0;]
 T_maxs = [10000:250:13000;]
 lg10_Ṁs = [-11:0.1:-9;]
 

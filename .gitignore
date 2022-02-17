@@ -10,3 +10,7 @@ spec
 *.gif
 *.mp4
 
+rotate.jl
+.gitignore
+data/102_11000_7-11_stat_nonlocal.dat
+data/99_10500_5-9_nonstat_nonlocal.dat

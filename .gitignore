@@ -10,3 +10,6 @@ spec
 *.gif
 *.mp4
 
+.gitignore
+data*
+data

@@ -334,16 +334,30 @@ function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
     return gridded_pars, gridded_names
 end
 
-
+function correctgridforcorotation!(gridded_pars, r_corr)
+    r_mis = gridded_pars[3, 1, 1, :, 1, 1]
+    Ws = gridded_pars[4, 1, 1, 1, :, 1]
+    r_cor_rounded = r_mis[findmin(abs.(r_mis .- r_corr))[2]]
+    for i = 1:length(r_mis)
+        for j = 1:length(Ws)
+            r_mi = r_mis[i]; W = Ws[j]
+            if r_mi + W > r_cor_rounded
+                gridded_pars[end, :, :, i, j, :] .= 1.0
+            end
+        end
+    end
+end
 
 lgṀs = [-11:0.1:-9;]
-T_maxs = [1e4:250:13000;]
+T_maxs = [1e4:500:13000;]
 Ws = [1.0:1:5;]
-r_mis = [4.0:1:10;]
+r_mis = [2.0:1:11;]
 angs = [40:2.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
 gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names); ""
+correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
+correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 
 function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
@@ -443,7 +457,8 @@ dispersion(xs, x0) = sqrt(sum((xs .- x0) .^ 2)/length(xs))
 function getmeananderrors(gridded_pars, pars)
     n_p = length(pars)
     means = zeros(n_p+3)
-    err = zeros(n_p+3)
+    unierr = zeros(3, n_p)
+    err = zeros(3, n_p+3)
     sum_weights = 0.0
     δs = gridded_pars[end, :,:,:,:,:]
     σ = minimum(δs)
@@ -468,6 +483,8 @@ function getmeananderrors(gridded_pars, pars)
         end
     end
     means = means / sum_weights
+    sum_weights_m = zeros(n_p+3)
+    sum_weights_p = zeros(n_p+3)
     for index in keys(δs)
         δ = δs[index]
         if δ < √2*σ
@@ -475,26 +492,36 @@ function getmeananderrors(gridded_pars, pars)
             # weight = exp(-((δ-σ)/σ)^2)
             # δ = 1
             for par_i = 1:n_p
-                err[par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
+                cur_par = pars[par_i][index[par_i]]
+                if cur_par < means[par_i]
+                    err[1, par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
+                    sum_weights_m[par_i] += weight
+                else
+                    err[3, par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
+                    sum_weights_p[par_i] += weight
+                end
+                err[2, par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
             end
             for par_i = n_p+1:n_p+3
                 cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]][1]
-                err[par_i] = (cur_par-means[par_i])^2 * weight
+                err[2, par_i] = (cur_par-means[par_i])^2 * weight
             end
         end
     end
-    err = @. √(err/sum_weights)
+    err[2,:] = @. √(err[2,:]/sum_weights)
+    err[1,:] = @. √(err[1,:]/sum_weights_m)
+    err[3,:] = @. √(err[3,:]/sum_weights_p)
 
-    unierr = dispersion.(pars, means[1:n_p])
+    unierr[2,:] = dispersion.(pars, means[1:n_p])
 
     parnames = ["lg Ṁ", "T_max", "r_mi", "W", "i", "A", "v", "f"]
 
     for i=1:n_p
-        @printf("%6s = %8.2f ± %6.2f (±%6.2f) [%.2f]\n", parnames[i], means[i], err[i], unierr[i], unierr[i]/err[i])
+        @printf("%6s = %8.2f ± %6.2f (±%6.2f) [%.2f]\n", parnames[i], means[i], err[2,i], unierr[2,i], unierr[2,i]/err[2,i])
     end
 
     for i=n_p+1:n_p+3
-        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[i])
+        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[2,i])
     end
 
     return means, err

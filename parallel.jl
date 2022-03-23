@@ -31,10 +31,10 @@ end
 star_name = "RZPsc"
 star = Star(star_name)
 
-r_mis = [2.0:1:14.0;]
+r_mis = [2.0:1:11.0;]
 mag_widths = [1.0:1:5.0;]
-T_maxs = [10000:500:13000;]
-lg10_Ṁs = [-11:0.1:-9;]
+T_maxs = [10000:500:15000;]
+lg10_Ṁs = [-11:0.1:-9.5;]
 
 i_angs = [40:2:60;]
 u = 3; l = 2
@@ -69,7 +69,7 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
     for i_ang in i_angs
         profile_name = "$(linename(u,l))_$i_ang"
         stat_profile_exist = isfile("stars/$star_name/$(model_name)_stat_nonlocal/$profile_name.dat")
-        nonstat_profile_exist = false#isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$profile_name.dat")
+        nonstat_profile_exist = isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$profile_name.dat")
         if !stat_profile_exist
             stat_ignore = false
             push!(stat_angles, i_ang)
@@ -108,7 +108,7 @@ end
 
 n_proc_models = findprocmodels(n_proc, n_models)
 n_iters = n_models ÷ n_proc
-println(n_iters, " ", n_proc_models, " ", n_models)
+println(n_iters, " ", n_models)
 # println(stats_angles)
 # println(nonstats_angles)
 
@@ -183,7 +183,7 @@ println(n_iters, " ", n_proc_models, " ", n_models)
 #         l = prof.lower_level
         profile_name = "$(linename(u,l))_$i_ang"
         saveprofile(prof, profile_name)
-#         println(profile_name)
+        println(profile_name, " ", prof.model.name)
     end
     println("$iter_id from $n_iters")
 end

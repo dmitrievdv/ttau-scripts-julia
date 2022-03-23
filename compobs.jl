@@ -304,6 +304,18 @@ function plotδ(pars, names, δ_cut; la = 0.1)
     plt
 end
 
+function findnearTmodels(T_max, pars, names, threshold; T_threshold = 10)
+    n_models = length(pars[:,1])
+    for i=1:n_models
+        T_max_i = pars[i,2]
+        δ_i = pars[i,end]
+        if (abs(T_max_i - T_max) < T_threshold) & (δ_i < threshold)
+            println("$i: $(names[i]) $(pars[i,:])")
+        end
+    end
+
+end
+
 function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
     n_models = length(pars[:,1])
     n_Ṁ = length(lgṀs)
@@ -322,7 +334,7 @@ function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
         i_T = findall(x -> abs(x-T_max) < 1e-4, T_maxs)
         i_rmi = findall(x -> abs(x-r_mi) < 1e-4, r_mis)
         i_W = findall(x -> abs(x-W) < 1e-4, Ws)
-        i_ang = findall(x -> abs(x-ang) < 1e-4, angs)
+        i_ang = findall(x -> abs(x-ang) < 1.5, angs)
         try
             gridded_pars[:, i_Ṁ[1], i_T[1], i_rmi[1], i_W[1], i_ang[1]] = pars[i,:]
             gridded_names[i_Ṁ[1], i_T[1], i_rmi[1], i_W[1], i_ang[1]] = [names[i][1], names[i][2]]
@@ -348,16 +360,16 @@ function correctgridforcorotation!(gridded_pars, r_corr)
     end
 end
 
-lgṀs = [-11:0.1:-9;]
-T_maxs = [1e4:500:13000;]
+lgṀs = [-11:0.1:-9.5;]
+T_maxs = [10e3:500:15000;]
 Ws = [1.0:1:5;]
 r_mis = [2.0:1:11;]
 angs = [40:2.0:60;]
 
 gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
 gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names); ""
-correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
-correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
+x = correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
+x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 
 function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
@@ -370,6 +382,7 @@ function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
 end
 
 function plotδheat(gridded_pars, dims, xs, ys; clims = (0, 0.1))
+    # xs = selectdim(gridded_pars, 1, dims[1])
     δ_i = size(gridded_pars)[1]
     griddedδ = selectdim(gridded_pars, 1, δ_i)
     hm_size = size(griddedδ, dims[1]), size(griddedδ, dims[2])
@@ -477,7 +490,7 @@ function getmeananderrors(gridded_pars, pars)
                 means[par_i] = means[par_i] + cur_par[i] * weight
             end
             for par_i = n_p+1:n_p+3
-                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]][1]
+                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]]
                 means[par_i] = means[par_i] + cur_par * weight
             end
         end
@@ -503,8 +516,8 @@ function getmeananderrors(gridded_pars, pars)
                 err[2, par_i] += (pars[par_i][index[par_i]]-means[par_i])^2 * weight
             end
             for par_i = n_p+1:n_p+3
-                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]][1]
-                err[2, par_i] = (cur_par-means[par_i])^2 * weight
+                cur_par = gridded_pars[par_i, index[1],index[2],index[3],index[4],index[5]]
+                err[2, par_i] += (cur_par-means[par_i])^2 * weight
             end
         end
     end
@@ -521,9 +534,8 @@ function getmeananderrors(gridded_pars, pars)
     end
 
     for i=n_p+1:n_p+3
-        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[2,i])
+        @printf("%6s = %9.3f ± %8.4f \n", parnames[i], means[i], err[2,i])
     end
-
     return means, err
 end
 
@@ -581,8 +593,38 @@ function getmeananderrors(gridded_pars, lgṀ, pars)
     end
 
     for i=n_p+1:n_p+3
-        @printf("%6s = %8.2f ± %6.3f \n", parnames[i], means[i], err[i])
+        @printf("%6s = %9.4f ± %8.4f \n", parnames[i], means[i], err[i])
     end
 
     return means, err
 end
+
+
+function savepars(file, parss, namess)
+    open(file*".dat", "w") do io
+        model_name = ""
+        n_profiles = length(namess)
+        for i = 1:n_profiles
+            pars = parss[i,:]
+            names = namess[i]
+            if names[1] != model_name
+                model_name = names[1]
+                println(io, "Model: $model_name")
+                print(io, "model pars: ")
+                @printf(io, "%8.2e ", pars[1])
+                for par in pars[2:4]
+                    @printf(io, "%8.2f ", par)
+                end
+                print(io, "\n")
+            end
+            @printf(io, "\t profile %s, δ = %.4f", names[2], pars[end])
+            print(io, "\t")
+            for par in pars[5:8]
+                @printf(io, "%8.2f", par)
+            end
+            print(io, "\n")
+        end
+    end
+end
+
+function plasmaparameters()

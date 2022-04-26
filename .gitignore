@@ -13,3 +13,4 @@ spec
 .gitignore
 data*
 data
+test.test

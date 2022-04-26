@@ -97,11 +97,13 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     star_name = star.name
     model_names = readdir("stars/$star_name")
     
+    suffix_words_count = length(split(suffix, "_"))
+
     # deleting star file
     deleteat!(model_names, findall(name -> name == "RZPsc.dat", model_names))
 
     # clearing nonstat files
-    deleteat!(model_names, findall(name -> (join(split(name, '_')[4:end], '_') != suffix), model_names))
+    deleteat!(model_names, findall(name -> (join(split(name, '_')[end-suff+1:end], '_') != suffix), model_names))
     n_models = length(model_names)
     
     # counting profiles
@@ -216,16 +218,24 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     return parameters, names
 end
 
-v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-star = Star("RZPsc")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
-# δs = pars[:,8]
-min_stat_δ = minimum(stat_pars[:,end])
-# min_nonstat_δ = minimum(nonstat_pars[:,end])
-
-# pars = vcat(nonstat_pars, stat_pars)
-# names = vcat(nonstat_names, stat_names)
+function boundpars(pars, names, bounds...)
+    indeces = Int[]
+    n_bounds = length(bounds)
+    n_models = length(names)
+    for i = 1:n_models
+        cur_par = pars[i, :]
+        for j = 1:n_bounds
+            par_i = bounds[j][1]
+            par_max = bounds[j][3]
+            par_min = bounds[j][2]
+            par_val = cur_par[par_i]
+            if (par_val ≤ par_max) & (par_val ≥ par_min)
+                push!(indeces, i)
+            end
+        end
+    end
+    return pars[indeces, :], names[indeces]
+end
 
 function plotmodel(pars, names, id)
     plt = plot()
@@ -316,35 +326,92 @@ function findnearTmodels(T_max, pars, names, threshold; T_threshold = 10)
 
 end
 
-function putongrid(lgṀs, T_maxs, r_mis, Ws, angs, pars, names)
-    n_models = length(pars[:,1])
-    n_Ṁ = length(lgṀs)
-    n_T = length(T_maxs)
-    n_rmi = length(r_mis)
-    n_W = length(Ws)
-    n_ang = length(angs)
+function plotheat(pars, x_grid, y_grid)
+    gridded_pars, gridded_names = putongrid(pars, fill(["", ""], length(pars[:,1])), x_grid, y_grid)
+    xs = if x_grid isa Tuple
+        x_grid[1]
+    else
+        x_grid
+    end
+    ys = if y_grid isa Tuple
+        y_grid[1]
+    else
+        y_grid
+    end
+    heatmap(xs, ys,  gridded_pars[9, :, :]', clims = (0, 0.1))
+end
+
+function putongrid(pars :: Matrix{Float64}, names, grid...)
     n_pars = length(pars[1,:])
-    gridded_pars = fill(1.0, (n_pars, n_Ṁ, n_T, n_rmi, n_W, n_ang))
-    gridded_names = fill(["",""], n_Ṁ, n_T, n_rmi, n_W, n_ang)
+    n_grid = length(grid)
+    println(n_grid)
+
+    grid_sigfig = fill(8, n_grid)
+    par_indeces = [1:n_grid;]
+    log_axis = fill(false, n_grid)
+    pars_length = zeros(Int, n_grid)
+    par_axes = fill([], n_grid)
+    
+    for i = 1:n_grid
+        par_grid = grid[i]
+        if par_grid isa Array
+            par_axes[i] = par_grid
+            pars_length[i] = length(par_grid)
+        elseif par_grid isa Tuple
+            pars_length[i] = length(par_grid[1])
+            par_axes[i] = par_grid[1]
+            if length(par_grid) > 1
+                options = par_grid[2]
+                if haskey(options, :index)
+                    par_indeces[i] = options.index
+                end
+                if haskey(options, :sigfig)
+                    grid_sigfig[i] = options.sigfig
+                end
+                if haskey(options, :axis)
+                    log_axis[i] = (options.axis == :log)
+                end
+            end        
+        end
+    end
+
+    gridded_pars = fill(1.0, (n_pars, pars_length...))
+    gridded_names = fill(["", ""], (pars_length...))
+    # println(grid_sigfig)
+    # println(par_indeces)
+    # println(pars_length)
+    n_models = length(pars[:,1])
     for i=1:n_models
-        Ṁ, T_max, r_mi, W, ang = pars[i,1:5]
-        lgṀ = log10(Ṁ)
-        # println(pars[i, 1:5], " ", names[i])
-        i_Ṁ = findall(x -> abs(x-lgṀ) < 1e-4, lgṀs)
-        i_T = findall(x -> abs(x-T_max) < 1e-4, T_maxs)
-        i_rmi = findall(x -> abs(x-r_mi) < 1e-4, r_mis)
-        i_W = findall(x -> abs(x-W) < 1e-4, Ws)
-        i_ang = findall(x -> abs(x-ang) < 1.5, angs)
-        try
-            gridded_pars[:, i_Ṁ[1], i_T[1], i_rmi[1], i_W[1], i_ang[1]] = pars[i,:]
-            gridded_names[i_Ṁ[1], i_T[1], i_rmi[1], i_W[1], i_ang[1]] = [names[i][1], names[i][2]]
-        catch err
-            println("Model $(names[i]) not on grid: $(pars[i, 1:5])")
-            println("$i_Ṁ $i_T $i_rmi $i_W $i_ang")
+        cur_pars = pars[i, par_indeces]
+        grid_indeces = zeros(Int, n_grid)
+        on_grid = true
+        for j = 1:n_grid
+            par_axis = if log_axis[j]
+                10.0 .^ par_axes[j]
+            else
+                par_axes[j]
+            end
+            par_value = cur_pars[j]
+            exp10 = floor(log10(par_value))
+            grid_index_found = findall(x -> abs((x-par_value)/10.0^exp10) < 10.0^(-grid_sigfig[j]+1), par_axis)
+            index_found = !isempty(grid_index_found)
+            if index_found
+                grid_indeces[j] = grid_index_found[1]
+            else
+                on_grid = false
+                break
+            end
+        end
+        if on_grid
+            if pars[i, end] < gridded_pars[end, grid_indeces...]
+                gridded_pars[:, grid_indeces...] = pars[i,:]
+                gridded_names[grid_indeces...] = [names[i][1], names[i][2]]
+            end
         end
     end
     return gridded_pars, gridded_names
 end
+
 
 function correctgridforcorotation!(gridded_pars, r_corr)
     r_mis = gridded_pars[3, 1, 1, :, 1, 1]
@@ -360,25 +427,14 @@ function correctgridforcorotation!(gridded_pars, r_corr)
     end
 end
 
-lgṀs = [-11:0.1:-9.5;]
-T_maxs = [10e3:500:15000;]
-Ws = [1.0:1:5;]
-r_mis = [2.0:1:11;]
-angs = [40:2.0:60;]
 
-gridded_stat_pars, gridded_stat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, stat_pars, stat_names); ""
-gridded_nonstat_pars, gridded_nonstat_names = putongrid(lgṀs, T_maxs, r_mis, Ws, angs, nonstat_pars, nonstat_names); ""
-x = correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
-x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
-
-
-function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang, δ_cut)
+function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang; clims = (0,0.1))
     ang = angs[i_ang]
     r_mi = r_mis[i_rm]
     W = Ws[i_W]
     r_mo = r_mi + W
     title = L"i = %$(ang)\degree,\ r_\mathrm{mi} = %$(r_mi),\ r_\mathrm{mo} = %$(r_mo)"
-    heatmap(T_maxs, lgṀs, log10.(gridded_pars[9,:,:,i_rm,i_W,i_ang]), title = title, clims = (-2, -1.2))
+    heatmap(T_maxs, lgṀs, log10.(gridded_pars[9,:,:,i_rm,i_W,i_ang]), title = title, clims = clims)
 end
 
 function plotδheat(gridded_pars, dims, xs, ys; clims = (0, 0.1))
@@ -627,4 +683,67 @@ function savepars(file, parss, namess)
     end
 end
 
-function plasmaparameters()
+function loadparameters(file, n_model_pars, n_prof_pars)
+    n_pars = n_model_pars + n_prof_pars
+    pars = Array{Float64,2}(undef, 0, n_pars+1)
+    names = Vector{String}[]
+    lines = readlines(file)
+    model_pars = zeros(n_model_pars)
+    model_name = ""
+    profile_name = ""
+    profile_pars = zeros(n_prof_pars)
+    δ = 1e2
+    open(file, "r") do io
+    line = "111"
+    while line != ""
+        line = readline(io)
+        words = split(line, " ", keepempty = false)
+        if length(words) == 0; continue; end
+        if words[1] == "Model:"
+            model_name = words[end]
+            # println(model_name)
+            continue
+        elseif words[1] == "model"
+            # println(words[end - n_model_pars+1:end])
+            model_pars = parse.(Float64, words[end - n_model_pars+1:end])
+            continue
+        elseif words[2] == "profile"
+            # println(words[end - n_prof_pars+1:end])
+            profile_pars = parse.(Float64, words[end - n_prof_pars+1:end])
+            profile_name = words[3]
+            δ = parse(Float64, words[end - n_prof_pars])
+            # println(model_pars, profile_pars, δ)
+            pars = vcat(pars, vcat(model_pars, profile_pars, δ)')
+            push!(names, [model_name, profile_name])
+        else 
+            continue
+        end             
+    end
+    end
+    return pars, names
+end
+
+
+star = Star("RZPsc")
+
+# v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
+# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+# δs = pars[:,8]
+
+@time stat_pars, stat_names = loadparameters("RZPsc_stat.dat", 4, 4)
+@time nonstat_pars, nonstat_names = loadparameters("RZPsc_nonstat.dat", 4, 4)
+
+lgṀs = [-11:0.1:-9.5;]
+T_maxs = [10e3:500:15000;]
+Ws = [1.0:1:5;]
+r_mis = [2.0:1:11;]
+angs = [40:2.0:60;]
+
+bound_stat_pars, bound_stat_names = boundpars(stat_pars, stat_names, (1, 10.0^(-11), 10.0^(-9)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 40, 60))
+bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names, (1, 10.0^(-11), 10.0^(-9)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 40, 60))
+
+gridded_stat_pars, gridded_stat_names = putongrid(stat_pars, stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+gridded_nonstat_pars, gridded_nonstat_names = putongrid(nonstat_pars, nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+x = correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
+x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))

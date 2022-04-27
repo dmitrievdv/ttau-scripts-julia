@@ -89,7 +89,7 @@ function hotspot_voigt_model(x, p)
     @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.01
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))# .+ abs(p[3])
 
 function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "")
     # Assuming there is a grid
@@ -100,10 +100,10 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     suffix_words_count = length(split(suffix, "_"))
 
     # deleting star file
-    deleteat!(model_names, findall(name -> name == "RZPsc.dat", model_names))
+    deleteat!(model_names, findall(name -> name == "$star_name.dat", model_names))
 
     # clearing nonstat files
-    deleteat!(model_names, findall(name -> (join(split(name, '_')[end-suff+1:end], '_') != suffix), model_names))
+    deleteat!(model_names, findall(name -> (join(split(name, '_')[end-suffix_words_count+1:end], '_') != suffix), model_names))
     n_models = length(model_names)
     
     # counting profiles
@@ -157,15 +157,15 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             r_to_fit = r_obs_mod .- r_mod 
             # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
             # r_to_fit = r_obs .- r_mod_obs 
-            fit_par = [0.2,20.0,0.05]
+            fit_par = [0.0,0.0,0.00]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
-            fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par)
-            fit_par = coef(fit) # [0.0,0.0]
-            println(fit_par)
+            # fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
+            # fit_par = coef(fit) # [0.0,0.0]
+            # println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = (r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+            res = (r_obs_mod .- r_mod) .^ 2# .- hotspot_gauss_model(v_mod, fit_par)) .^ 2
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
-            δ = sqrt(sum(res[abs.(v_mod) .> 0])/length(abs.(v_mod) .> 0))
+            δ = sqrt(sum(res[abs.(v_mod) .≥ 0])/length(abs.(v_mod) .≥ 0))
             i_ang = profile.orientation.i
             n_model += 1
             if n_model > n_profiles
@@ -223,15 +223,20 @@ function boundpars(pars, names, bounds...)
     n_bounds = length(bounds)
     n_models = length(names)
     for i = 1:n_models
+        inbounds = true
         cur_par = pars[i, :]
         for j = 1:n_bounds
             par_i = bounds[j][1]
             par_max = bounds[j][3]
             par_min = bounds[j][2]
             par_val = cur_par[par_i]
-            if (par_val ≤ par_max) & (par_val ≥ par_min)
-                push!(indeces, i)
+            if (par_val ≥ par_max) | (par_val ≤ par_min)
+                # push!(indeces, i)
+                inbounds = false
             end
+        end
+        if inbounds
+            push!(indeces, i)
         end
     end
     return pars[indeces, :], names[indeces]
@@ -271,9 +276,8 @@ function plotmodelerr(pars, names, id)
     plot!(plt, v_mod, r_gauss_mod .- r_obs_mod, lc = :red, label = "mod - obs")
 end
 
-function plotδ(pars, names, δ_cut; la = 0.1)
-    
-    plt = plot(legend = false)
+function plotδ(pars, names, δ_cut; la = 0.5)
+    plt = plot()
     # min_δ = min(min_stat_δ, min_nonstat_δ)
     best_names = []
     best_pars = []
@@ -295,11 +299,12 @@ function plotδ(pars, names, δ_cut; la = 0.1)
             v_mag, r_mag = getvandr(profile_nophot)
             r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, abs.(pars[i,6:end-1]))
             r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
-            plot!(plt, v_mod, r_gauss_mod, lc = :red, la = la)
-            plot!(plt, v_mod, hotspot_gauss_model(v_mod, abs.(pars[i,6:end-1])) .+ 1, lc = :red, ls =:dash, la = la)
-            plot!(plt, v_mod, r_mod, lc = :orange, ls = :dash, la = la)
-            plot!(plt, v_mag, r_mag, lc = :blue, ls = :dash, la = la)
-            plot!(plt, v_mod, r_obs_mod, xlims = (-500, 600), ylims = (0.4, 1.2), lc = :black)
+            plot!(plt, v_mod, r_obs_mod, xlims = (-300, 600), ylims = (0.4, 1.4), lc = :skyblue, lw = 2, label = "obs")
+            plot!(plt, v_mod, r_gauss_mod, lc = :black, ls = :dash, la = la, lw = 2, label = "mag + synt")
+            # plot!(plt, v_mod, hotspot_gauss_model(v_mod, abs.(pars[i,6:end-1])) .+ 1, lc = :orange, la = la, lw = 2, label = "chromo")
+            # plot!(plt, v_mod, r_mod, lc = :orange, ls = :dash, la = la, lw = 2)
+            plot!(plt, v_mag, r_mag, lc = :red, la = la, lw = 2, label = "mag")
+            
             # push!(plots, plt)
             push!(best_names, [model_name, profile_name])
             push!(best_pars, [i; pars[i,:]])
@@ -667,16 +672,16 @@ function savepars(file, parss, namess)
                 model_name = names[1]
                 println(io, "Model: $model_name")
                 print(io, "model pars: ")
-                @printf(io, "%8.2e ", pars[1])
+                @printf(io, "%8.6e ", pars[1])
                 for par in pars[2:4]
-                    @printf(io, "%8.2f ", par)
+                    @printf(io, "%8.6f ", par)
                 end
                 print(io, "\n")
             end
-            @printf(io, "\t profile %s, δ = %.4f", names[2], pars[end])
+            @printf(io, "\t profile %s, δ = %.6f", names[2], pars[end])
             print(io, "\t")
             for par in pars[5:8]
-                @printf(io, "%8.2f", par)
+                @printf(io, "%8.6f", par)
             end
             print(io, "\n")
         end
@@ -726,22 +731,22 @@ end
 
 star = Star("RZPsc")
 
-# v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
-# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
 # δs = pars[:,8]
 
-@time stat_pars, stat_names = loadparameters("RZPsc_stat.dat", 4, 4)
-@time nonstat_pars, nonstat_names = loadparameters("RZPsc_nonstat.dat", 4, 4)
+# @time stat_pars, stat_names = loadparameters("RZPsc_stat.dat", 4, 4)
+# @time nonstat_pars, nonstat_names = loadparameters("RZPsc_nonstat.dat", 4, 4)
 
 lgṀs = [-11:0.1:-9.5;]
-T_maxs = [10e3:500:15000;]
-Ws = [1.0:1:5;]
-r_mis = [2.0:1:11;]
-angs = [40:2.0:60;]
+T_maxs = [10e3:1000:15000;]
+Ws = [1:0.2:4;]
+r_mis = [2.0:1:10;]
+angs = [35:5.0:60;]
 
-bound_stat_pars, bound_stat_names = boundpars(stat_pars, stat_names, (1, 10.0^(-11), 10.0^(-9)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 40, 60))
-bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names, (1, 10.0^(-11), 10.0^(-9)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 40, 60))
+bound_stat_pars, bound_stat_names = boundpars(stat_pars, stat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 30, 70))
+bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 35, 60))
 
 gridded_stat_pars, gridded_stat_names = putongrid(stat_pars, stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
 gridded_nonstat_pars, gridded_nonstat_names = putongrid(nonstat_pars, nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""

@@ -6,8 +6,25 @@ addprocs(n_proc)
 
 @everywhere using TTauUtils
 
+function rstring(r; max_d = 2)
+    r_int = max_d
+    while (round(Int, r*10^(r_int)) % 10) == 0
+        r_int -= 1
+    end
+    r_int
+    whole = round(Int, r)
+    dec_str = if r_int == 0
+        ""
+    else 
+        part = round(Int, r*10^r_int) - whole*10^r_int
+        zeros = r_int - floor(Int, log10(part)) - 1
+        "d"*("0"^zeros)*string(part)
+    end
+    return string(whole)*dec_str
+end
+
 @everywhere function modelname(Ṁ, T_max, r_mi, r_mo)
-    mag_string = "$(round(Int, r_mi))-$(round(Int, r_mo))"
+    mag_string = "$(rstring(r_mi))-$(rstring(r_mo))"
     T_string = string(round(Int, T_max))
     lg_Ṁ = log10(Ṁ)
     Ṁ_string = string(round(Int, -lg_Ṁ*10))
@@ -31,12 +48,12 @@ end
 star_name = "RZPsc"
 star = Star(star_name)
 
-r_mis = [2.0:1:11.0;]
-mag_widths = [1.0:1:5.0;]
-T_maxs = [10000:500:15000;]
-lg10_Ṁs = [-11:0.1:-9.5;]
+r_mis = [2.0:1:6.0;]
+mag_widths = [0.02:0.02:0.2;]
+T_maxs = [10000:1000:15000;]
+lg10_Ṁs = [-12.5:0.1:-10.5;]
 
-i_angs = [40:2:60;]
+i_angs = [30:5:60;]
 u = 3; l = 2
 
 parameters = Vector{Float64}[]

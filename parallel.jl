@@ -6,6 +6,8 @@ addprocs(n_proc)
 
 @everywhere using TTauUtils
 
+dec_char = ["d", "c"]
+
 function rstring(r; max_d = 2)
     r_int = max_d
     while (round(Int, r*10^(r_int)) % 10) == 0
@@ -14,13 +16,13 @@ function rstring(r; max_d = 2)
     r_int
     whole = round(Int, r)
     dec_str = if r_int == 0
-        ""
+        string(whole)
     else 
         part = round(Int, r*10^r_int) - whole*10^r_int
         zeros = r_int - floor(Int, log10(part)) - 1
-        "d"*("0"^zeros)*string(part)
+        dec_char[r_int]*string(whole)*("0"^zeros)*string(part)
     end
-    return string(whole)*dec_str
+    return dec_str
 end
 
 @everywhere function modelname(Ṁ, T_max, r_mi, r_mo)

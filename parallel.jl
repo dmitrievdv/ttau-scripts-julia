@@ -14,11 +14,11 @@ function rstring(r; max_d = 2)
         r_int -= 1
     end
     r_int
-    whole = round(Int, r)
+    whole = floor(Int, r)
     dec_str = if r_int == 0
         string(whole)
     else 
-        part = round(Int, r*10^r_int) - whole*10^r_int
+        part = floor(Int, r*10^r_int) - whole*10^r_int
         zeros = r_int - floor(Int, log10(part)) - 1
         dec_char[r_int]*string(whole)*("0"^zeros)*string(part)
     end
@@ -47,15 +47,15 @@ end
     line_name *= 'a' + u-1-l
 end
 
-star_name = "RZPsc"
+star_name = "PDS70"
 star = Star(star_name)
 
-r_mis = [2.0:1:6.0;]
-mag_widths = [0.02:0.02:0.2;]
+r_mis = [2.0:0.5:6.0;]
+mag_widths = [0.1:0.1:2;]
 T_maxs = [10000:1000:15000;]
-lg10_Ṁs = [-12.5:0.1:-10.5;]
+lg10_Ṁs = [-12:0.2:-9;]
 
-i_angs = [30:5:60;]
+i_angs = [35:5:65;]
 u = 3; l = 2
 
 parameters = Vector{Float64}[]

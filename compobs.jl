@@ -739,11 +739,11 @@ nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat",
 # @time stat_pars, stat_names = loadparameters("RZPsc_stat.dat", 4, 4)
 # @time nonstat_pars, nonstat_names = loadparameters("RZPsc_nonstat.dat", 4, 4)
 
-lgṀs = [-11:0.1:-9.5;]
-T_maxs = [10e3:1000:15000;]
-Ws = [1:0.2:4;]
-r_mis = [2.0:1:10;]
-angs = [35:5.0:60;]
+r_mis = [2.0:1:6.0;]
+Ws = [0.02:0.02:0.2;]
+T_maxs = [10000:1000:15000;]
+lgṀs = [-12.5:0.1:-10.5;]
+angs = [30:5:60;]
 
 bound_stat_pars, bound_stat_names = boundpars(stat_pars, stat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 30, 70))
 bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 35, 60))

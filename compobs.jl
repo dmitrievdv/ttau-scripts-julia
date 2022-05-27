@@ -380,7 +380,7 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
         end
     end
 
-    gridded_pars = fill(1.0, (n_pars, pars_length...))
+    gridded_pars = fill(1e15, (n_pars, pars_length...))
     gridded_names = fill(["", ""], (pars_length...))
     # println(grid_sigfig)
     # println(par_indeces)
@@ -417,6 +417,15 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
     return gridded_pars, gridded_names
 end
 
+function correctnonstatgrid!(gridded_nonstat_pars, gridded_nonstat_names, gridded_stat_pars, gridded_stat_names)
+    indeces = keys(gridded_stat_names)
+    for index in indeces
+        if gridded_nonstat_pars[end, index] > 1e10
+            gridded_nonstat_pars[:, index] .= gridded_stat_pars[:, index]
+            gridded_nonstat_names[index] .= gridded_stat_names[index]
+        end
+    end
+end
 
 function correctgridforcorotation!(gridded_pars, r_corr)
     r_mis = gridded_pars[3, 1, 1, :, 1, 1]
@@ -527,6 +536,12 @@ end
 #     println(trunc[i,:])
 # end
 dispersion(xs, x0) = sqrt(sum((xs .- x0) .^ 2)/length(xs))
+
+function getmeansanderrors(gridded_pars)
+    pars = separatepars(flattenpars(gridded_pars, priority = [1:5;]))
+    pars[1] = log10.(pars[1])
+    getmeananderrors(gridded_pars, pars)
+end
 
 function getmeananderrors(gridded_pars, pars)
     n_p = length(pars)
@@ -678,10 +693,10 @@ function savepars(file, parss, namess)
                 end
                 print(io, "\n")
             end
-            @printf(io, "\t profile %s, δ = %.6f", names[2], pars[end])
-            print(io, "\t")
+            @printf(io, "     profile %s, δ = %.6f", names[2], pars[end])
+            print(io, " ")
             for par in pars[5:8]
-                @printf(io, "%8.6f", par)
+                @printf(io, "%8.6f ", par)
             end
             print(io, "\n")
         end
@@ -692,7 +707,7 @@ function loadparameters(file, n_model_pars, n_prof_pars)
     n_pars = n_model_pars + n_prof_pars
     pars = Array{Float64,2}(undef, 0, n_pars+1)
     names = Vector{String}[]
-    lines = readlines(file)
+    # lines = readlines(file)
     model_pars = zeros(n_model_pars)
     model_name = ""
     profile_name = ""
@@ -702,7 +717,9 @@ function loadparameters(file, n_model_pars, n_prof_pars)
     line = "111"
     while line != ""
         line = readline(io)
+        # println(line)
         words = split(line, " ", keepempty = false)
+        # println(words)
         if length(words) == 0; continue; end
         if words[1] == "Model:"
             model_name = words[end]
@@ -712,10 +729,10 @@ function loadparameters(file, n_model_pars, n_prof_pars)
             # println(words[end - n_model_pars+1:end])
             model_pars = parse.(Float64, words[end - n_model_pars+1:end])
             continue
-        elseif words[2] == "profile"
+        elseif words[1] == "profile"
             # println(words[end - n_prof_pars+1:end])
             profile_pars = parse.(Float64, words[end - n_prof_pars+1:end])
-            profile_name = words[3]
+            profile_name = words[2]
             δ = parse(Float64, words[end - n_prof_pars])
             # println(model_pars, profile_pars, δ)
             pars = vcat(pars, vcat(model_pars, profile_pars, δ)')
@@ -728,21 +745,79 @@ function loadparameters(file, n_model_pars, n_prof_pars)
     return pars, names
 end
 
+function reshapeindeces(grid, priority)
+    n_model_pars = length(priority)
+    length_model_pars = size(grid)[2:n_model_pars+1]
+    n_models = prod(length_model_pars)
+    indeces = fill(CartesianIndex(Tuple(1:5)), n_models)
+    for i = 1:n_models
+        model_index = i-1
+        index = [1:5;]
+        for par_i in priority
+            index[par_i] = model_index % length_model_pars[par_i] + 1
+            model_index = model_index ÷ length_model_pars[par_i]
+        end
+        indeces[i] = CartesianIndex(Tuple(index))
+        # println(index)
+    end
+    indeces
+end
+
+function flattengrid(gridded_pars; priority = [5; 1:4], n_pars = 9) 
+    indeces = reshapeindeces(gridded_pars, priority)
+    pars = gridded_pars[:, indeces]
+    reshape(pars, (n_pars, length(pars) ÷ n_pars))'
+end
+
+function flattengrid(gridded_pars, gridded_names; priority = [5; 1:4], n_pars = 9)
+    indeces = reshapeindeces(gridded_pars, priority)
+    pars = gridded_pars[:, indeces]
+    names = gridded_names[indeces]
+    return reshape(pars, (n_pars, length(pars) ÷ n_pars))', names[:]
+end
+
+function separatepars(pars; pars_indeces :: UnitRange{Int} = 1:5)
+    separated_pars = Vector{Float64}[]
+    n_pars = length(pars_indeces)
+    for k = 1:n_pars; push!(separated_pars, Float64[]); end
+    cur_pars = zeros(n_pars)
+    n_models = size(pars)[1]
+    for i = 1:n_models   
+        cur_pars = pars[i,pars_indeces]
+        for k = 1:n_pars
+            cur_par = cur_pars[k]
+            found_par_vals = separated_pars[k]
+            is_new = true
+            for found_par_val in found_par_vals
+                if abs(cur_par/found_par_val - 1) < 1e-6
+                    is_new = false
+                end
+            end
+            if is_new
+                push!(separated_pars[k], cur_pars[k])
+            end
+        end        
+    end
+    for k = 1:n_pars
+        sort!(separated_pars[k])
+    end
+    return separated_pars
+end
 
 star = Star("RZPsc")
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
 # δs = pars[:,8]
 
-# @time stat_pars, stat_names = loadparameters("RZPsc_stat.dat", 4, 4)
-# @time nonstat_pars, nonstat_names = loadparameters("RZPsc_nonstat.dat", 4, 4)
+@time stat_pars, stat_names = loadparameters("paper-grid_RZPsc_stat.dat", 4, 4)
+@time nonstat_pars, nonstat_names = loadparameters("paper-grid_RZPsc_nonstat.dat", 4, 4)
 
-r_mis = [2.0:1:6.0;]
-Ws = [0.02:0.02:0.2;]
+r_mis = [2.0:1:10.0;]
+Ws = [1:0.2:4;]
 T_maxs = [10000:1000:15000;]
-lgṀs = [-12.5:0.1:-10.5;]
+lgṀs = [-11:0.1:-9.5;]
 angs = [30:5:60;]
 
 bound_stat_pars, bound_stat_names = boundpars(stat_pars, stat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 30, 70))
@@ -750,5 +825,13 @@ bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names,
 
 gridded_stat_pars, gridded_stat_names = putongrid(stat_pars, stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
 gridded_nonstat_pars, gridded_nonstat_names = putongrid(nonstat_pars, nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+x = correctnonstatgrid!(gridded_nonstat_pars, gridded_nonstat_names, gridded_stat_pars, gridded_stat_names)
 x = correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
 x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
+
+grid_stat_pars, grid_stat_names = flattengrid(gridded_stat_pars, gridded_stat_names)
+grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
+savepars("paper-grid_RZPsc_stat", grid_stat_pars, grid_stat_names)
+savepars("paper-grid_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
+
+

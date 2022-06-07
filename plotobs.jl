@@ -1,22 +1,32 @@
+using Plots 
+
 
 function plotmodel(pars, names, id)
-    plt = plot()
+    # plt = plot(xtics = (-300:100:600, string.(-300:100:600)))
     model_name, profile_name = names[id]
-    println(names[id], " ", pars[id,5:end])
-    model = TTauUtils.Models.loadmodel(star, model_name)
-    profile_nophot = HydrogenProfile(star, model, profile_name[1:5])
+    model = if checkmodel(model_name, star)
+        TTauUtils.Models.loadmodel(star, model_name)
+    else
+        calcmodel(model_name, star, pars[id, 1:4]...)
+    end
+    profile_nophot = if checkprofile(profile_name, model_name, star)
+        HydrogenProfile(star, model, profile_name[1:5])
+    else
+        calcprofile(star, model_name, profile_name, pars[id, 5], 3=>2)
+        HydrogenProfile(star, model, profile_name[1:5])
+    end
     profile = HydrogenProfile(star, model, profile_name)
     v_mod, r_mod = getvandr(profile)
     r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
     v_mag, r_mag = getvandr(profile_nophot)
-    r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[id,6:end-1])
-    plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "all")
-    plot!(plt, v_mod, hotspot_gauss_model(v_mod, pars[id,6:end-1]) .+ 1, lc = :red, la = 0.5, ls =:dash, label = "hotspot")
-    plot!(plt, v_mod, r_mod, lc = :orange, ls = :dash, la = 0.5, label = "mag + phot")
-    plot!(plt, v_mag, r_mag, lc = :blue, ls = :dash, la = 0.5, label = "mag")
-    plot!(plt, v_mod, r_obs_mod, xlims = (-500, 600), ylims = (0.4, 1.4), lc = :black, label = "obs")
-    r_obs_mod = velocitiesobstomod(v_mod, r_gauss_mod, v_obs, r_obs)
-    plot!(plt, v_mod, r_gauss_mod .- r_obs_mod .+ 1, lc = :black, la = 0.3, label = "mod - obs")
+    # r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[id,6:end-1])
+    # plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "all")
+    # plot!(plt, v_mod, hotspot_gauss_model(v_mod, pars[id,6:end-1]) .+ 1, lc = :red, la = 0.5, ls =:dash, label = "hotspot")
+    plot!(plt, v_mod, r_obs_mod, xlims = (-300, 600), ylims = (0.4, 1.4), lc = :black, label = "obs")
+    plot!(plt, v_mod, r_mod, lc = :red, label = "mag + phot")
+    plot!(plt, v_mag, r_mag, lc = :orange, la = 1, label = "mag")
+    r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+    plot!(plt, v_mod, r_obs_mod .- r_mod .+ 1, lc = :black, ls = :dash, la = 0.3, label = "mod - obs")
 end
 
 function plotmodelerr(pars, names, id)

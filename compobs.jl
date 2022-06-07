@@ -7,6 +7,100 @@ using LaTeXStrings
 using SpecialFunctions
 using Printf
 
+function calcmodel(name, star, Ṁ, T_max, R_in, W; args...) 
+    local_id = split(name, '_')[end]
+    non_local = local_id == "nonlocal"
+    alg_id, local_name = if non_local
+        split(name, '_')[end-1], name[1:end-9]
+    else
+        local_id, name
+    end
+    model = if alg_id == "stat"
+        StationarySolidMagnetosphereNHCool(local_name, star, R_in, R_in + W, Ṁ, T_max, 10; args...)
+    elseif alg_id == "nonstat"
+        NonStationarySolidMagnetosphereNHCool(local_name, star, R_in, R_in + W, Ṁ, T_max, 10; args...)
+    end
+    model = if non_local
+        addnonlocal(model)
+    else
+        model
+    end
+    savemodel(model)
+    return model
+end
+
+function checkmodel(name, star; star_dir = "stars")
+    isfile("$star_dir/$(star.name)/$name/$name.dat")
+end
+
+function checkprofile(profile_name, model_name, star; star_dir = "stars")
+    isfile("$star_dir/$(star.name)/$model_name/$profile_name.dat")
+end
+
+series_name = ["L", "H", "Pa", "Br", "Pf", "Hu"]
+
+linename(u, l) = series_name[l]*('a' - 1 + u-l)
+
+linename(line :: Pair{Int}) = linename(line[1], line[2])
+
+# function calcprofile(star, model_name, profile_name, angle, line; args...)
+#     does_model_exist = checkmodel(model_name, star)
+#     model = if does_model_exist
+#         loadmodel(star, model_name)
+#     else
+#         throw(ErrorException("model does not exist!"))
+#     end
+#     profile = HydrogenProfileDoppler(model, line[1], line[2], i, 0.1, 0.1, 0.1, 50)
+#     saveprofile(profile, profile_name)
+# end
+
+function findminmaxnh(pars, names; star_dir = "stars")
+    n_models = size(pars)[1]
+    min_nh = zeros(n_models)
+    max_nh = zeros(n_models)
+    for i = 1:n_models
+        Ṁ, T_max, R_in, W = pars[i, 1:4]
+        lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
+        model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            savemodel(model)
+            model
+        else
+            loadmodel(star, lte_name)
+        end
+        ts = [0:0.01:1;]
+        R_out = R_in + W
+        min_nh[i] = 1e100
+        max_nh[i] = 0.0
+        for t in ts
+            nh = 10^model.lgnh_spl2d(R_out, t)
+            if nh < min_nh[i]; min_nh[i] = nh; end
+            if nh > max_nh[i]; max_nh[i] = nh; end 
+        end
+    end
+    return min_nh, max_nh
+end
+
+function bestmodels(pars, names)
+    min_δ = findmin(pars[:,end])[1]
+    δ_thres = √2*min_δ
+    best = pars[:, end] .< δ_thres
+    println(sum(best), " ", length(names))
+    return pars[best, :], names[best]
+end
+
+function computeltemodels(star, pars, names; star_dir = "stars", args...)
+    n_models = size(pars)[1]
+    for i = 1:n_models
+        Ṁ, T_max, R_in, W = pars[i, 1:4]
+        model_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
+        if !isfile("$star_dir/$(star.name)/$model_name/$model_name.dat")
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            savemodel(model)
+        end
+    end
+end
+
 function readobservation(filename :: AbstractString)
     r_obs = Float64[]
     v_obs = Float64[]
@@ -450,8 +544,7 @@ function savepars(file, parss, namess)
                 end
                 print(io, "\n")
             end
-            @printf(io, "     profile %s, δ = %.6f", names[2], pars[end])
-            print(io, " ")
+            @printf(io, "     profile %s δ = %.6f ", names[2], pars[end])
             for par in pars[5:8]
                 @printf(io, "%8.6f ", par)
             end

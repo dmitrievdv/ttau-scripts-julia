@@ -10,12 +10,12 @@ dec_char = ["d", "c"]
 
 function rstring(r; max_d = 2)
     r_int = max_d
-    while (round(Int, r*10^(r_int)) % 10) == 0
+    while (round(Int, r*10^(r_int*1.0)) % 10) == 0
         r_int -= 1
     end
     r_int
     whole = floor(Int, r)
-    dec_str = if r_int == 0
+    dec_str = if r_int <= 0
         string(whole)
     else 
         part = floor(Int, r*10^r_int) - whole*10^r_int
@@ -47,15 +47,22 @@ end
     line_name *= 'a' + u-1-l
 end
 
-star_name = "PDS70"
+star_name = "RZPsc"
 star = Star(star_name)
 
-r_mis = [2.0:0.5:6.0;]
-mag_widths = [0.1:0.1:2;]
-T_maxs = [10000:1000:15000;]
-lg10_Ṁs = [-12:0.2:-9;]
+# PDS 70
+# r_mis = [2.0:0.5:6.0;]
+# mag_widths = [0.1:0.1:2;]
+# T_maxs = [10000:1000:15000;]
+# lg10_Ṁs = [-12:0.2:-9;]
+# i_angs = [35:5:65;]
 
-i_angs = [35:5:65;]
+r_mis = [2.0:1:10.0;]
+mag_widths = [1:0.2:4;]
+T_maxs = [7000:1000:15000;]
+lg10_Ṁs = [-11:0.2:-9.0;]
+i_angs = [35:5:60;]
+
 u = 3; l = 2
 
 parameters = Vector{Float64}[]
@@ -75,6 +82,7 @@ n_models = 0
 
 for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_Ṁs
     r_mo = r_mi + mag_width
+    if r_mo > ceil(TTauUtils.Stars.corotationradius(star)); continue; end
     mag_string = "$(round(Int, r_mi))-$(round(Int, r_mo))"
     T_string = string(round(Int, T_max))
     Ṁ_string = string(round(Int, -lg10_Ṁ*10))

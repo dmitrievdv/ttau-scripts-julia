@@ -2,7 +2,7 @@ using Plots
 
 
 function plotmodel(pars, names, id)
-    # plt = plot(xtics = (-300:100:600, string.(-300:100:600)))
+    plt = plot()
     model_name, profile_name = names[id]
     model = if checkmodel(model_name, star)
         TTauUtils.Models.loadmodel(star, model_name)

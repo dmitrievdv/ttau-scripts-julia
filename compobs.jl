@@ -7,6 +7,15 @@ using LaTeXStrings
 using SpecialFunctions
 using Printf
 
+function calcgridrelation(gridded_pars_1, gridded_pars_2)
+    grid_size = size(gridded_pars_1)
+    if grid_size != size(gridded_pars_2)
+        throw(ErrorException("grid or parameters shapes don't match!"))
+    end
+    
+    gridded_relation = zeros(grid_size)
+end
+
 function calcmodel(name, star, Ṁ, T_max, R_in, W; args...) 
     local_id = split(name, '_')[end]
     non_local = local_id == "nonlocal"
@@ -54,6 +63,42 @@ linename(line :: Pair{Int}) = linename(line[1], line[2])
 #     saveprofile(profile, profile_name)
 # end
 
+function findmeannh(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
+    n_models = size(pars)[1]
+    mean_nh = zeros(n_models)
+    for i = 1:n_models
+        Ṁ, T_max, R_in, W = pars[i, 1:4]
+        lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
+        model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            savemodel(model)
+            model
+        else
+            loadmodel(star, lte_name)
+        end
+        θ_min = asin(√(1/model.geometry.r_mo))
+        θ_step = (π/2 - θ_min)/(n_θ+1)/2
+        θ_halfstep = θ_step/2
+        NH = 0.0
+        V = 0.0
+        for j=1:n_θ
+            θ = θ_min + θ_halfstep + θ_step*(j-1)
+            r_min = min(1, model.geometry.r_mi*sin(θ)^2)
+            r_max = model.geometry.r_mo*sin(θ)^2
+            r_step = (r_max - r_min)/(n_r+1)
+            r_halfstep = r_step/2
+            for k = 1:n_r
+                r = r_min + r_halfstep + r_step*(k-1)
+                nh = TTauUtils.Models.hydrogenconcentration(model, r, θ)
+                NH += nh*2π*sin(θ)*r^2*θ_step*r_step
+                V += 2π*sin(θ)*r^2*θ_step*r_step
+            end
+        end
+        mean_nh[i] = NH/V
+    end
+    return mean_nh
+end
+
 function findminmaxnh(pars, names; star_dir = "stars")
     n_models = size(pars)[1]
     min_nh = zeros(n_models)
@@ -68,7 +113,7 @@ function findminmaxnh(pars, names; star_dir = "stars")
         else
             loadmodel(star, lte_name)
         end
-        ts = [0:0.01:1;]
+        ts = [0:0.01:0.5;]
         R_out = R_in + W
         min_nh[i] = 1e100
         max_nh[i] = 0.0

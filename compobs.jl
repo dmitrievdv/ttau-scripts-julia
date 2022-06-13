@@ -83,7 +83,7 @@ function findmeannh(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
         V = 0.0
         for j=1:n_θ
             θ = θ_min + θ_halfstep + θ_step*(j-1)
-            r_min = min(1, model.geometry.r_mi*sin(θ)^2)
+            r_min = max(1, model.geometry.r_mi*sin(θ)^2)
             r_max = model.geometry.r_mo*sin(θ)^2
             r_step = (r_max - r_min)/(n_r+1)
             r_halfstep = r_step/2
@@ -596,6 +596,28 @@ function savepars(file, parss, namess)
             print(io, "\n")
         end
     end
+end
+
+function findmodels(pars, pars_value, pars_indeces, thresholds)
+    n_pars = length(pars_value)
+    n_models = length(pars[:, 1])
+    indeces = Int[]
+    for i = 1:n_models
+        index_right = true
+        for pid = 1:n_pars
+            p = pars_indeces[pid]
+            value = pars[i, p]
+            if p == 1; value = log10(value); end
+            if abs(value - pars_value[pid]) > thresholds[pid]
+                index_right = false
+                break
+            end
+        end
+        if index_right
+            push!(indeces, i)
+        end
+    end
+    return indeces
 end
 
 function loadparameters(file, n_model_pars, n_prof_pars)

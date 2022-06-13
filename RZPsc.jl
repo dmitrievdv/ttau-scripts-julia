@@ -14,8 +14,8 @@ include("plotobs.jl")
 star = Star("RZPsc")
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
 # δs = pars[:,8]
 
 function calcprofile(star, model_name, profile_name, angle, line; args...)

@@ -560,16 +560,20 @@ function getmeananderrors(gridded_pars, pars)
 
     unierr[2,:] = dispersion.(pars, means[1:n_p])
 
+    printmeansanderrors(means, err[2,:], unierr[2,:])
+    return means, err[2,:], unierr[2,:]
+end
+
+function printmeansanderrors(means, err, unierr)
     parnames = ["lg Ṁ", "T_max", "r_mi", "W", "i", "A", "v", "f"]
-
+    n_p = length(parnames) - 3
     for i=1:n_p
-        @printf("%6s = %8.2f ± %6.2f (±%6.2f) [%.2f]\n", parnames[i], means[i], err[2,i], unierr[2,i], unierr[2,i]/err[2,i])
+        @printf("%6s = %8.2f ± %6.2f (±%6.2f) [%.2f]\n", parnames[i], means[i], err[i], unierr[i], unierr[i]/err[i])
     end
 
-    for i=n_p+1:n_p+3
-        @printf("%6s = %9.3f ± %8.4f \n", parnames[i], means[i], err[2,i])
-    end
-    return means, err
+    # for i=n_p+1:n_p+3
+    #     @printf("%6s = %9.3f ± %8.4f \n", parnames[i], means[i], err[i])
+    # end
 end
 
 function savepars(file, parss, namess)

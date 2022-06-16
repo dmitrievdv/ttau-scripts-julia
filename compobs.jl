@@ -254,7 +254,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
                     if split(profile_name, "_")[end] == prof_suffix
                         n_profiles += 1 
                     end
-                else
+                elseсам
                     n_profiles += 1 
                 end
             end
@@ -574,6 +574,23 @@ function printmeansanderrors(means, err, unierr)
     # for i=n_p+1:n_p+3
     #     @printf("%6s = %9.3f ± %8.4f \n", parnames[i], means[i], err[i])
     # end
+end
+
+function addfluxconstant(f, pars, names)
+    new_pars = deepcopy(pars)
+    new_pars[:,8] .= f
+    for i in 1:length(names)
+        model_name, profile_name = names[i]
+        if (model_name == "") | (profile_name == ""); continue; end
+        model = loadmodel(star, model_name)
+        profile = HydrogenProfile(star, model, profile_name)
+        v_mod, r_mod = getvandr(profile)
+        r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+        res = (r_obs_mod .- (r_mod .+ f)) .^ 2# .- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+        δ = sqrt(sum(res[abs.(v_mod) .≥ 0])/length(abs.(v_mod) .≥ 0))
+        new_pars[i,9] = δ
+    end
+    return new_pars
 end
 
 function savepars(file, parss, namess)

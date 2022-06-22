@@ -227,7 +227,7 @@ function hotspot_voigt_model(x, p)
     @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.01
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))# .+ abs(p[3])
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
 
 function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "")
     # Assuming there is a grid
@@ -254,7 +254,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
                     if split(profile_name, "_")[end] == prof_suffix
                         n_profiles += 1 
                     end
-                elseсам
+                else
                     n_profiles += 1 
                 end
             end
@@ -283,7 +283,6 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
         for k = 1:length(profile_files)
             # println("$model_name $star_name ")
             profile_name = profile_files[k][1:end-4]
-            println("$model_name $star_name $profile_name")
             if prof_suffix != "" 
                 if split(profile_name, "_")[end] != prof_suffix
                     continue
@@ -295,15 +294,16 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             r_to_fit = r_obs_mod .- r_mod 
             # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
             # r_to_fit = r_obs .- r_mod_obs 
-            fit_par = [0.0,0.0,0.00]
+            fit_par = [2.0,50.0,0.00]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
-            # fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
-            # fit_par = coef(fit) # [0.0,0.0]
+            fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
+            fit_par = coef(fit) # [0.0,0.0]
             # println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = (r_obs_mod .- r_mod) .^ 2# .- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+            res = (r_obs_mod .- r_mod) .^ 2#) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
-            δ = sqrt(sum(res[abs.(v_mod) .≥ 0])/length(abs.(v_mod) .≥ 0))
+            δ = sqrt(sum(res[abs.(v_mod) .≥ 50])/length(abs.(v_mod) .≥ 50))
+            println("$model_name $star_name $profile_name $δ")
             i_ang = profile.orientation.i
             n_model += 1
             if n_model > n_profiles
@@ -352,7 +352,8 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
 
     # deleteat!(model_names, findall(n -> n < n_grid, similar_points_summed))
     # println(n_grid, " ", length(model_names))
-
+    # println(n_model)
+    # println(parameters)
     return parameters, names
 end
 
@@ -476,10 +477,11 @@ end
 function correctgridforcorotation!(gridded_pars, r_corr)
     r_mis = gridded_pars[3, 1, 1, :, 1, 1]
     Ws = gridded_pars[4, 1, 1, 1, :, 1]
-    r_cor_rounded = r_mis[findmin(abs.(r_mis .- r_corr))[2]]
+    r_cor_rounded = r_corr # r_mis[findmin(abs.(r_mis .- r_corr))[2]]
     for i = 1:length(r_mis)
         for j = 1:length(Ws)
             r_mi = r_mis[i]; W = Ws[j]
+            # println("$r_mi $W $(r_mi + W > r_cor_rounded) $r_corr $r_cor_rounded")
             if r_mi + W > r_cor_rounded
                 gridded_pars[end, :, :, i, j, :] .= 1.0
             end

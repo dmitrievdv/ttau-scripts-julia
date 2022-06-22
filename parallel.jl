@@ -47,7 +47,7 @@ end
     line_name *= 'a' + u-1-l
 end
 
-star_name = "RZPsc"
+star_name = "V2129Oph"
 star = Star(star_name)
 
 # PDS 70
@@ -57,11 +57,19 @@ star = Star(star_name)
 # lg10_Ṁs = [-12:0.2:-9;]
 # i_angs = [35:5:65;]
 
-r_mis = [2.0:1:10.0;]
-mag_widths = [1:0.2:4;]
-T_maxs = [7000:1000:15000;]
-lg10_Ṁs = [-11:0.2:-9.0;]
-i_angs = [35:5:60;]
+# RZ Psc
+# r_mis = [2.0:1:10.0;]
+# mag_widths = [1:0.2:4;]
+# T_maxs = [7000,8000]#:1000:15000;]
+# lg10_Ṁs = [-10:0.2:-8.4;]
+# i_angs = [35:5:60;]
+
+# V2129 Oph
+r_mis = [4.0:1:9.0;]
+mag_widths = [0.5:0.5:4;]
+T_maxs = [7000:1000:12000;]#:1000:15000;]
+lg10_Ṁs = [-10:0.2:-8;]
+i_angs = [40:5:80;]
 
 u = 3; l = 2
 
@@ -88,7 +96,10 @@ for r_mi in r_mis, mag_width in mag_widths, T_max in T_maxs, lg10_Ṁ in lg10_M�
     Ṁ_string = string(round(Int, -lg10_Ṁ*10))
     Ṁ = 10.0^lg10_Ṁ
     model_name = modelname(Ṁ, T_max, r_mi, r_mo)
+    rm("stars/$star_name/$(model_name)_lte", force = true, recursive = true)
+    # stat_exist = false; rm("stars/$star_name/$(model_name)_stat_nonlocal", force = true, recursive = true) # isfile("stars/$star_name/$(model_name)_stat_nonlocal/$(model_name)_stat_nonlocal.dat")
     stat_exist = isfile("stars/$star_name/$(model_name)_stat_nonlocal/$(model_name)_stat_nonlocal.dat")
+    # nonstat_exist = false; rm("stars/$star_name/$(model_name)_nonstat_nonlocal", force = true, recursive = true) # isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
     nonstat_exist = isfile("stars/$star_name/$(model_name)_nonstat_nonlocal/$(model_name)_nonstat_nonlocal.dat")
     stat_angles = Float64[]
     nonstat_angles = Float64[]
@@ -183,7 +194,7 @@ println(n_iters, " ", n_models)
         if stat_ok
             for i_ang in stat_angles
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
+                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 400)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end
@@ -193,7 +204,7 @@ println(n_iters, " ", n_models)
             for i_ang in nonstat_angles
 #                 profile_name = "$(linename(u,l))_$i_ang"
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
+                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 400)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end

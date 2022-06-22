@@ -36,7 +36,7 @@ end
 
 r_mis = [2.0:1:10.0;]
 Ws = [1:0.2:4;]
-T_maxs = [7000:1000:15000;]
+T_maxs = [8000:1000:15000;]
 lgṀs = [-11:0.2:-8.4;]
 angs = [35:5:60;]
 
@@ -51,8 +51,8 @@ x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 grid_stat_pars, grid_stat_names = flattengrid(gridded_stat_pars, gridded_stat_names)
 grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
-savepars("paper-grid_lowT_RZPsc_stat", grid_stat_pars, grid_stat_names)
-savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
+# savepars("paper-grid_lowT_RZPsc_stat", grid_stat_pars, grid_stat_names)
+# savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
 
 best_stat_pars, best_stat_names = bestmodels(grid_stat_pars, grid_stat_names)
 best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)
@@ -61,7 +61,6 @@ function plotnh(pars, names)
     computeltemodels(star, pars, names)
     min_nh, max_nh = findminmaxnh(pars, names)
     mean_nh = findmeannh(pars, names); ""
-
     plt = scatter(pars[:,2], min_nh, yaxis = :log, label = "min NH")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
     scatter!(plt, pars[:,2], max_nh, label = "max NH")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
                                                                                             #"", "5⋅10^{-11}", "", "7⋅10^{-11}",
@@ -80,3 +79,69 @@ function plotnh(pars, names)
 end
 
 plotnh(best_nonstat_pars, best_nonstat_names)
+
+Ca_τ = [2.624 2.624 2.646 2.572 2.333 1.937 1.472 1.041;
+        83.41 91.32 86.50 69.17 48.88 32.40 20.39 12.48;
+        900.6 929.8 807.7 526.0 284.9 146.6 76.86 41.25]
+
+Na_τ = [3.657e-2 7.795e-2 9.010e-2 6.814e-2 4.492e-2 2.906e-02 1.918e-02 1.304e-02;  
+        7.504    5.012    2.523    1.292    0.708    0.415     0.258     0.169;
+        180.7    80.91    36.22    17.80    9.519    5.474     3.351     2.162]
+
+τ_T = [8000:1e3:15000;]; τ_NH = [9:1.0:11;]
+
+lgCa_τ_spl2d = Spline2D(τ_NH, τ_T, log10.(Ca_τ), kx = 2)
+lgNa_τ_spl2d = Spline2D(τ_NH, τ_T, log10.(Na_τ), kx = 2)
+
+τNa(T, nh) = 10^lgNa_τ_spl2d(log10(nh), T)/1e11*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4sqrt(23)
+τCa(T, nh) = 10^lgCa_τ_spl2d(log10(nh), T)/1e11*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4/sqrt(40)
+
+function plotCa(pars, names)
+    computeltemodels(star, pars, names)
+    min_nh, max_nh = findminmaxnh(pars, names)
+    mean_nh = findmeannh(pars, names)
+    mean_Ca_τ = τCa.(pars[:,2], mean_nh)
+    min_Ca_τ = τCa.(pars[:,2], min_nh)
+    max_Ca_τ = τCa.(pars[:,2], max_nh)
+    plt = scatter(pars[:,2], min_Ca_τ, yaxis = :log, label = "min Ca τ")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
+    scatter!(plt, pars[:,2], max_Ca_τ, label = "min Ca τ")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
+                                                                                            #"", "5⋅10^{-11}", "", "7⋅10^{-11}",
+                                                                                            #"", "", "1⋅10^{-10}"]))
+    plt = scatter!(plt, pars[:,2], mean_Ca_τ, yaxis = :log, label = "mean Ca τ", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))                                                                                      
+    # plot!(plt, yticks = ([1e8, 3e8, 5e8, 7e8,
+    #                       1e9, 3e9, 5e9, 7e9,
+    #                       1e10,3e10,5e10,7e10,
+    #                       1e11,3e11,5e11,7e11,
+    #                       1e12,3e12,5e12,7e12], 
+    #                      ["10^{8}", "3⋅10^{8}", "5⋅10^{8}", "7⋅10^{8}",
+    #                       "10^{9}", "3⋅10^{9}", "5⋅10^{9}", "7⋅10^{9}",
+    #                       "10^{10}","3⋅10^{10}","5⋅10^{10}","7⋅10^{10}",
+    #                       "10^{11}","3⋅10^{11}","5⋅10^{11}","7⋅10^{11}",
+    #                       "10^{12}","3⋅10^{12}","5⋅10^{12}","7⋅10^{12}"]))
+end
+
+function plotNa(pars, names)
+    computeltemodels(star, pars, names)
+    min_nh, max_nh = findminmaxnh(pars, names)
+    mean_nh = findmeannh(pars, names)
+    mean_Na_τ = τNa.(pars[:,2], mean_nh)
+    min_Na_τ = τNa.(pars[:,2], min_nh)
+    max_Na_τ = τNa.(pars[:,2], max_nh)
+    plt = scatter(pars[:,2], min_Na_τ, yaxis = :log, label = "min Na τ")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
+    scatter!(plt, pars[:,2], max_Na_τ, label = "min Na τ")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
+                                                                                            #"", "5⋅10^{-11}", "", "7⋅10^{-11}",
+                                                                                            #"", "", "1⋅10^{-10}"]))
+    plt = scatter!(plt, pars[:,2], mean_Na_τ, yaxis = :log, label = "mean Na τ", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))                                                                                      
+    # plot!(plt, yticks = ([1e8, 3e8, 5e8, 7e8,
+    #                       1e9, 3e9, 5e9, 7e9,
+    #                       1e10,3e10,5e10,7e10,
+    #                       1e11,3e11,5e11,7e11,
+    #                       1e12,3e12,5e12,7e12], 
+    #                      ["10^{8}", "3⋅10^{8}", "5⋅10^{8}", "7⋅10^{8}",
+    #                       "10^{9}", "3⋅10^{9}", "5⋅10^{9}", "7⋅10^{9}",
+    #                       "10^{10}","3⋅10^{10}","5⋅10^{10}","7⋅10^{10}",
+    #                       "10^{11}","3⋅10^{11}","5⋅10^{11}","7⋅10^{11}",
+    #                       "10^{12}","3⋅10^{12}","5⋅10^{12}","7⋅10^{12}"]))
+end
+
+plotNa(best_nonstat_pars, best_nonstat_names)

@@ -63,6 +63,52 @@ linename(line :: Pair{Int}) = linename(line[1], line[2])
 #     saveprofile(profile, profile_name)
 # end
 
+function findmeanvgrad(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
+    n_models = size(pars)[1]
+    mean_vgrad = zeros(n_models)
+    source_map = TTauUtils.HydrogenPopulations.SourcesMap(100)
+    directions = source_map.directions
+    solid_angles = source_map.solid_angles
+    for i = 1:n_models
+        println("$(i-1) from $n_models")
+        Ṁ, T_max, R_in, W = pars[i, 1:4]
+        lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
+        model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            savemodel(model)
+            model
+        else
+            loadmodel(star, lte_name)
+        end
+        θ_min = asin(√(1/model.geometry.r_mo))
+        θ_step = (π/2 - θ_min)/(n_θ+1)/2
+        θ_halfstep = θ_step/2
+        v_grad = 0.0
+        V = 0.0
+        kin = model.kinematics
+        for j=1:n_θ
+            θ = θ_min + θ_halfstep + θ_step*(j-1)
+            r_min = max(1, model.geometry.r_mi*sin(θ)^2)
+            r_max = model.geometry.r_mo*sin(θ)^2
+            r_step = (r_max - r_min)/(n_r+1)
+            r_halfstep = r_step/2
+            for k = 1:n_r
+                r = r_min + r_halfstep + r_step*(k-1)
+                mean_n∇vn = 0.0
+                for (direction, dΩ) in zip(directions, solid_angles)
+                    α, β = direction
+                    n∇vn = abs(TTauUtils.Models.directionalgradient(kin, r, θ, α, β))
+                    mean_n∇vn += n∇vn*dΩ/4π
+                end
+                v_grad += mean_n∇vn*2π*sin(θ)*r^2*θ_step*r_step
+                V += 2π*sin(θ)*r^2*θ_step*r_step
+            end
+        end
+        mean_vgrad[i] = v_grad/V
+    end
+    return mean_vgrad
+end
+
 function findmeannh(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
     n_models = size(pars)[1]
     mean_nh = zeros(n_models)

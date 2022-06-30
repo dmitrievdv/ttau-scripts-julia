@@ -1,5 +1,7 @@
 include("compobs.jl")
 include("plotobs.jl")
+using StaticArrays
+using LinearAlgebra
 # using TTauUtils
 # using Dierckx
 # using Interpolations
@@ -80,21 +82,156 @@ end
 
 plotnh(best_nonstat_pars, best_nonstat_names)
 
-Ca_τ = [2.624 2.624 2.646 2.572 2.333 1.937 1.472 1.041;
-        83.41 91.32 86.50 69.17 48.88 32.40 20.39 12.48;
-        900.6 929.8 807.7 526.0 284.9 146.6 76.86 41.25]
+Ca_τ = [6.84   6.14   6.15   6.73   7.73   7.97   7.01   5.42   3.72   2.41;
+        1.67e2 1.55e2 1.85e2 1.96e2 1.69e2 1.18e2 7.31e1 4.33e1 2.58e1 1.56e1;
+        1.32e3 1.60e3 1.81e3 1.85e3 1.54e3 9.14e2 4.40e2 2.11e2 1.06e2 5.47e1;]
 
-Na_τ = [3.657e-2 7.795e-2 9.010e-2 6.814e-2 4.492e-2 2.906e-02 1.918e-02 1.304e-02;  
-        7.504    5.012    2.523    1.292    0.708    0.415     0.258     0.169;
-        180.7    80.91    36.22    17.80    9.519    5.474     3.351     2.162]
+Na_τ = [5.48e-2 5.21e-2 1.08e-1 2.54e-1 2.57e-1 1.72e-1 1.05e-1 5.49e-2 4.17e-2 2.79e-2;
+        1.86    1.08e1  1.91e1  1.09e1  5.21    2.64    1.44    8.46e-1 5.26e-1 3.44e-1;
+        2.04e2  5.79e2  3.47e2  1.60e2  7.21e1  3.55e1  1.91e1  1.10e1  6.74    4.34;]
 
-τ_T = [8000:1e3:15000;]; τ_NH = [9:1.0:11;]
+τ_T = [6000:1e3:15000;]; τ_NH = [9:1.0:11;]
+T_min_τ = minimum(τ_T); T_max_τ = maximum(τ_T)
+lgNH_min_τ = minimum(τ_NH); lgNH_max_τ = maximum(τ_NH)
 
 lgCa_τ_spl2d = Spline2D(τ_NH, τ_T, log10.(Ca_τ), kx = 2)
 lgNa_τ_spl2d = Spline2D(τ_NH, τ_T, log10.(Na_τ), kx = 2)
 
-τNa(T, nh) = 10^lgNa_τ_spl2d(log10(nh), T)/1e11*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4sqrt(23)
-τCa(T, nh) = 10^lgCa_τ_spl2d(log10(nh), T)/1e11*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4/sqrt(40)
+function τNa(T, nh) 
+    lgNH = log10(nh)
+    T_τ = 0.0
+    lgNH_τ = 0.0
+    if (T > T_min_τ) & (T < T_max_τ) & (lgNH > lgNH_min_τ) & (lgNH < lgNH_max_τ)
+        T_τ = T
+        lgNH_τ = lgNH
+    else
+        lgNH_τ = τ_NH[findmin(abs.(τ_NH .- lgNH))[2]]
+        T_τ = τ_T[findmin(abs.(τ_T .- T))[2]]
+    end
+    10^lgNa_τ_spl2d(lgNH_τ, T_τ)/TTauUtils.starradiiincm(star)*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4/sqrt(23)
+end
+
+function τCa(T, nh) 
+    lgNH = log10(nh)
+    T_τ = 0.0
+    lgNH_τ = 0.0
+    if (T > T_min_τ) & (T < T_max_τ) & (lgNH > lgNH_min_τ) & (lgNH < lgNH_max_τ)
+        T_τ = T
+        lgNH_τ = lgNH
+    else
+        lgNH_τ = τ_NH[findmin(abs.(τ_NH .- lgNH))[2]]
+        T_τ = τ_T[findmin(abs.(τ_T .- T))[2]]
+    end
+    10^lgCa_τ_spl2d(log10(nh), T)/TTauUtils.starradiiincm(star)*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4/sqrt(40)
+end
+
+function calcabsprofiledip(pars :: Matrix{Float64}, names, τfunc, atomic_mass, v_z, dr, max_dz; star_dir = "stars")
+    n_models = length(names)
+    abs_prof_dip = zeros(n_models)
+    for i = 1:n_models
+        abs_prof_dip[i] = calcabsprofiledip(pars[i,:], names[i], τfunc, atomic_mass, v_z, dr, max_dz, star_dir = star_dir)
+    end
+    abs_prof_dip
+end
+
+function calcabsprofiledip(par :: Vector{Float64}, name :: Vector{S}, τfunc, atomic_mass, v_z, dr, max_dz; star_dir = "stars") where S <: AbstractString
+    Ṁ, T_max, R_in, W = par[1:4]
+    model_name, profile_name = name
+    # println("$model_name $profile_name")
+    lte_name = join(split(model_name, '_')[1:3], '_')*"_lte"
+    model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
+        model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+        savemodel(model)
+        model
+    else
+        loadmodel(star, lte_name)
+    end
+    angle = par[5]
+    calcabsprofiledip(model, angle, τfunc, atomic_mass, v_z, dr, max_dz)
+end
+
+function calcabsprofiledip(model :: TTauUtils.HydrogenModel, angle :: Real, τfunc, atomic_mass, v, dr, max_dz)
+    grid = TTauUtils.Grids.polargrid(1, dr)
+    star = model.star
+    R_s = TTauUtils.starradiiincm(star)
+    kin = model.kinematics
+    orientation = TTauUtils.GeometryAndOrientations.Orientation(angle)
+    S_star = 0.0
+    S_tau = 0.0
+    λ_s = 0.1
+    for (x, y, dS) in zip(grid...)
+        borders = TTauUtils.GeometryAndOrientations.calcborders(x, y, model.geometry, orientation)
+        borders_n = length(borders)
+        depth = 0.0
+        τ_ray = 0.0
+        for i=1:borders_n
+            depth += (2*((i+1)%2 - 1) + 1)*borders[i]
+        end
+        min_dz = max_dz/1e2
+        if depth > 1e-5
+            for i=borders_n:-2:2
+                # dz = depth/m_z
+                z_in = borders[i]
+                z_out = borders[i-1]
+                last = false
+                z_end = z_in
+                z = z_end
+                r = √(x^2 + y^2 + z^2)
+                r̂ = SA[x/r, y/r, z/r]
+                θ = acos(r̂ ⋅ orientation.dipole_axis)
+                x_1, x_2 = TTauUtils.spheretogrid(model.geometry, r, θ)
+                T_e = TTauUtils.gridTe(model, x_1, x_2)
+                v_t = TTauUtils.Models.hydrogenthermalvelocity(T_e)/√(atomic_mass)
+                r̂, θ̂, ϕ̂ = TTauUtils.Profiles.sphericalbasis(x, y, z, r, θ, orientation)
+                R_to_star_axis = r*sin(acos(r̂ ⋅ orientation.star_axis))
+                sphere_v = TTauUtils.Models.velocityfieldspherical(kin, r, θ)
+                sphere_v += SA[0.0, 0.0, R_to_star_axis*star.v_eq*1e5]
+                v_z = -(r̂[3]*sphere_v[1] + θ̂[3]*sphere_v[2] + ϕ̂[3]*sphere_v[3])
+                l_s = TTauUtils.Profiles.sobolevlength(kin, r, θ, r̂, θ̂, ϕ̂, v_t)
+                dz = min(λ_s*l_s/R_s, max_dz)
+                dz = max(dz, min_dz)
+                while !last
+                    z_end -= dz
+                    if z_end < z_out
+                        last = true
+                        z_end += dz
+                        dz = z_end - z_out
+                        z_end -= dz
+                        z = z_end + dz/2
+                    else
+                        z = z_end + dz/2 
+                    end
+                    # println(z)
+                    r = √(x^2 + y^2 + z^2)
+                    r̂ = SA[x/r, y/r, z/r]
+                    θ = acos(r̂ ⋅ orientation.dipole_axis)
+                    r̂, θ̂, ϕ̂ = TTauUtils.Profiles.sphericalbasis(x, y, z, r, θ, orientation)
+                    R_to_star_axis = r*sin(acos(r̂ ⋅ orientation.star_axis))
+                    sphere_v = TTauUtils.Models.velocityfieldspherical(kin, r, θ)
+                    sphere_v += SA[0.0, 0.0, R_to_star_axis*model.star.v_eq*1e5]
+                    v_z = -(r̂[3]*sphere_v[1] + θ̂[3]*sphere_v[2] + ϕ̂[3]*sphere_v[3])
+                    # v_z = rayvelocity(x, y, z, r, θ, orientation, sphere_v)
+                    x_1, x_2 = TTauUtils.spheretogrid(model.geometry, r, θ)
+                    T_e = TTauUtils.gridTe(model, x_1, x_2)
+                    n_h = TTauUtils.gridnh(model, x_1, x_2)
+                    v_t = TTauUtils.Models.hydrogenthermalvelocity(T_e)/√(atomic_mass)
+                    if abs(v - v_z*1e-5) < v_t*1e-5
+                        # println("$v $(v_z*1e-5) $(v_t*1e-5)")
+                        abs_coef = τfunc(T_e, n_h)*1e-4/v_t#*TTauUtils.Models.hydrogenthermalvelocity(T)/1e-4/sqrt(23)
+                        τ_ray += dz*abs_coef*R_s
+                    end
+                    l_s = TTauUtils.Profiles.sobolevlength(model.kinematics, r, θ, r̂, θ̂, ϕ̂, v_t)
+                    dz = min(λ_s*l_s/R_s, max_dz)
+                    dz = max(dz, min_dz)
+                end
+                # println(τ_ray[1:20:end])
+            end 
+            S_tau += dS*(1 - exp(-τ_ray))            
+        end
+        S_star += dS
+    end
+    return S_tau/S_star
+end
 
 function plotCa(pars, names)
     computeltemodels(star, pars, names)
@@ -158,6 +295,17 @@ function plotCaNa(pars, names)
     plot!(plt, xlabel = L"T,\ [K]", ylabel = L"\tau")
 end
 
+function chooseCaNainds(Ca_abs_dip, Na_abs_dip, Ca_thres, Na_thres)
+    n_models = length(Ca_abs_dip)
+    inds = Int[]
+    for i=1:n_models
+        if (Ca_abs_dip[i] > Ca_thres) & (Na_abs_dip[i] < Na_thres)
+            push!(inds, i)
+        end
+    end
+    return inds
+end
+
 Ca_plt = plotCa(best_nonstat_pars, best_nonstat_names)
 Na_plt = plotNa(best_nonstat_pars, best_nonstat_names)
 CaNa_plt = plotCaNa(best_stat_pars, best_stat_names)
@@ -178,3 +326,6 @@ plt_stat_T8000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T8000)
 
 plt_nonstat_T10000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T10000)
 plt_stat_T10000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T10000)
+
+
+plotNa(best_nonstat_pars, best_nonstat_names)

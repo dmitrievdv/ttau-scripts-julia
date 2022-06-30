@@ -18,6 +18,7 @@ function plotmodel(pars, names, id)
     profile = HydrogenProfile(star, model, profile_name)
     v_mod, r_mod = getvandr(profile)
     r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+    
     v_mag, r_mag = getvandr(profile_nophot)
     r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[id,6:end-1])
     # plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "all")

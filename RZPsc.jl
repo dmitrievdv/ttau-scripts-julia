@@ -16,8 +16,10 @@ using LinearAlgebra
 star = Star("RZPsc")
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
-# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+# stat_pars = addfluxconstant(0.01, stat_pars, stat_names)
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+# nonstat_pars = addfluxconstant(0.01, nonstat_pars, nonstat_names)
 # δs = pars[:,8]
 
 function calcprofile(star, model_name, profile_name, angle, line; args...)
@@ -33,8 +35,8 @@ function calcprofile(star, model_name, profile_name, angle, line; args...)
     saveprofile(profile, profile_name)
 end
 
-@time stat_pars, stat_names = loadparameters("paper-grid_lowT_RZPsc_stat.dat", 4, 4)
-@time nonstat_pars, nonstat_names = loadparameters("paper-grid_lowT_RZPsc_nonstat.dat", 4, 4)
+# @time stat_pars, stat_names = loadparameters("paper-grid_absonly_lowT_RZPsc_stat.dat", 4, 4)
+# @time nonstat_pars, nonstat_names = loadparameters("paper-grid_absonly_lowT_RZPsc_nonstat.dat", 4, 4)
 
 r_mis = [2.0:1:10.0;]
 Ws = [1:0.2:4;]
@@ -53,8 +55,8 @@ x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 grid_stat_pars, grid_stat_names = flattengrid(gridded_stat_pars, gridded_stat_names)
 grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
-# savepars("paper-grid_lowT_RZPsc_stat", grid_stat_pars, grid_stat_names)
-# savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
+savepars("paper-grid_lowT_RZPsc_stat", grid_stat_pars, grid_stat_names)
+savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
 
 best_stat_pars, best_stat_names = bestmodels(grid_stat_pars, grid_stat_names)
 best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)
@@ -137,7 +139,7 @@ end
 function calcabsprofiledip(par :: Vector{Float64}, name :: Vector{S}, τfunc, atomic_mass, v_z, dr, max_dz; star_dir = "stars") where S <: AbstractString
     Ṁ, T_max, R_in, W = par[1:4]
     model_name, profile_name = name
-    # println("$model_name $profile_name")
+    println("$model_name $profile_name")
     lte_name = join(split(model_name, '_')[1:3], '_')*"_lte"
     model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
         model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
@@ -306,26 +308,55 @@ function chooseCaNainds(Ca_abs_dip, Na_abs_dip, Ca_thres, Na_thres)
     return inds
 end
 
-Ca_plt = plotCa(best_nonstat_pars, best_nonstat_names)
-Na_plt = plotNa(best_nonstat_pars, best_nonstat_names)
-CaNa_plt = plotCaNa(best_stat_pars, best_stat_names)
+Ca_abs_dip_best_stat = calcabsprofiledip(best_stat_pars, best_stat_names, τCa, 40, 200, 0.05, 0.1)
+Ca_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τCa, 40, 200, 0.05, 0.1)
 
-ind_T9000 = findmodels(grid_nonstat_pars, [9000], [2], [100])
-ind_T8000 = findmodels(grid_nonstat_pars, [8000], [2], [100])
-ind_T10000 = findmodels(grid_nonstat_pars, [10000], [2], [100])
+Na_abs_dip_best_stat = calcabsprofiledip(best_stat_pars, best_stat_names, τNa, 23, 200, 0.05, 0.1)
+Na_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τNa, 23, 200, 0.05, 0.1)
 
-best_ind_T9000 = ind_T9000[findmin(grid_nonstat_pars[ind_T9000,9])[2]]
-best_ind_T8000 = ind_T8000[findmin(grid_nonstat_pars[ind_T8000,9])[2]]
-best_ind_T10000 = ind_T10000[findmin(grid_nonstat_pars[ind_T10000,9])[2]]
+Ca_nonstat_plt = scatter(best_nonstat_pars[:,2], Ca_abs_dip_best_nonstat)
+Ca_stat_plt = scatter(best_stat_pars[:,2], Ca_abs_dip_best_stat)
 
-plt_nonstat_T9000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T9000)
-plt_stat_T9000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T9000)
+Na_nonstat_plt = scatter(best_nonstat_pars[:,2], Na_abs_dip_best_nonstat)
+Na_stat_plt = scatter(best_stat_pars[:,2], Na_abs_dip_best_stat)
 
-plt_nonstat_T8000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T8000)
-plt_stat_T8000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T8000)
+CaNa_best_nonstat_inds = chooseCaNainds(Ca_abs_dip_best_nonstat, Na_abs_dip_best_nonstat, 0.1, 0.1)
+CaNa_best_stat_inds = chooseCaNainds(Ca_abs_dip_best_stat, Na_abs_dip_best_stat, 0.1, 0.1)
 
-plt_nonstat_T10000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T10000)
-plt_stat_T10000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T10000)
+CaNa_best_nonstat_pars = best_nonstat_pars[CaNa_best_nonstat_inds, :]
+CaNa_best_nonstat_names = best_nonstat_names[CaNa_best_nonstat_inds]
+
+CaNa_best_stat_pars = best_stat_pars[CaNa_best_stat_inds, :]
+CaNa_best_stat_names = best_stat_names[CaNa_best_stat_inds]
+
+CaNa_gridded_stat_pars, CaNa_gridded_stat_names = putongrid(CaNa_best_stat_pars, CaNa_best_stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names = putongrid(CaNa_best_nonstat_pars, CaNa_best_nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+x = correctnonstatgrid!(CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names, CaNa_gridded_stat_pars, CaNa_gridded_stat_names)
+x = correctgridforcorotation!(CaNa_gridded_stat_pars, corotationradius(star))
+x = correctgridforcorotation!(CaNa_gridded_nonstat_pars, corotationradius(star))
 
 
-plotNa(best_nonstat_pars, best_nonstat_names)
+
+# Ca_plt = plotCa(best_nonstat_pars, best_nonstat_names)
+# Na_plt = plotNa(best_nonstat_pars, best_nonstat_names)
+# CaNa_plt = plotCaNa(best_stat_pars, best_stat_names)
+
+# ind_T9000 = findmodels(grid_nonstat_pars, [9000], [2], [100])
+# ind_T8000 = findmodels(grid_nonstat_pars, [8000], [2], [100])
+# ind_T10000 = findmodels(grid_nonstat_pars, [10000], [2], [100])
+
+# best_ind_T9000 = ind_T9000[findmin(grid_nonstat_pars[ind_T9000,9])[2]]
+# best_ind_T8000 = ind_T8000[findmin(grid_nonstat_pars[ind_T8000,9])[2]]
+# best_ind_T10000 = ind_T10000[findmin(grid_nonstat_pars[ind_T10000,9])[2]]
+
+# plt_nonstat_T9000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T9000)
+# plt_stat_T9000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T9000)
+
+# plt_nonstat_T8000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T8000)
+# plt_stat_T8000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T8000)
+
+# plt_nonstat_T10000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T10000)
+# plt_stat_T10000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T10000)
+
+
+# plotNa(best_nonstat_pars, best_nonstat_names)

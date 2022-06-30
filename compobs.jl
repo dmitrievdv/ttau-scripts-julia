@@ -318,7 +318,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     n_model = 0
     # gaussian
     # hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))
-    fit_par = [0.0,0.0,0.0]
+    fit_par = [0.0,0.0,0.01]
     names = Vector{String}[]
     for i = 1:n_models
         model_name = model_names[i]
@@ -340,15 +340,15 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             r_to_fit = r_obs_mod .- r_mod 
             # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
             # r_to_fit = r_obs .- r_mod_obs 
-            fit_par = [2.0,50.0,0.00]
+            # fit_par = [2.0,50.0,0.00]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
-            fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
-            fit_par = coef(fit) # [0.0,0.0]
+            # fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
+            # fit_par = coef(fit) # [0.0,0.0]
             # println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = (r_obs_mod .- r_mod) .^ 2#) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+            res = (r_obs_mod .- r_mod .+ fit_par[3]) .^ 2#) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
-            δ = sqrt(sum(res[abs.(v_mod) .≥ 50])/length(abs.(v_mod) .≥ 50))
+            δ = sqrt(sum(res[abs.(v_mod) .≥ 30])/length(res[abs.(v_mod) .≥ 30]))
             println("$model_name $star_name $profile_name $δ")
             i_ang = profile.orientation.i
             n_model += 1
@@ -473,7 +473,22 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
         end
     end
 
-    gridded_pars = fill(1e15, (n_pars, pars_length...))
+    gridded_pars = zeros(n_pars, pars_length...)
+    grid_array = zeros(pars_length...)
+
+    for index in keys(grid_array)
+        gridded_pars[end, index] = 1e15
+        for i in 1:n_grid
+            i_ind = index[i]
+            par = if log_axis[i]
+                10.0 .^ par_axes[i][i_ind]
+            else
+                par_axes[i][i_ind]
+            end
+            gridded_pars[i, index] = par
+        end
+    end
+
     gridded_names = fill(["", ""], (pars_length...))
     # println(grid_sigfig)
     # println(par_indeces)
@@ -542,7 +557,7 @@ end
 # end
 dispersion(xs, x0) = sqrt(sum((xs .- x0) .^ 2)/length(xs))
 
-function getmeansanderrors(gridded_pars)
+function getmeananderrors(gridded_pars)
     pars = separatepars(flattenpars(gridded_pars, priority = [1:5;]))
     pars[1] = log10.(pars[1])
     getmeananderrors(gridded_pars, pars)

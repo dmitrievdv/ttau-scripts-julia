@@ -47,7 +47,7 @@ end
     line_name *= 'a' + u-1-l
 end
 
-star_name = "V2129Oph"
+star_name = "SCrA_SE"
 star = Star(star_name)
 
 # PDS 70
@@ -64,14 +64,14 @@ star = Star(star_name)
 # lg10_Ṁs = [-10:0.2:-8.4;]
 # i_angs = [35:5:60;]
 
-# V2129 Oph
-r_mis = [4.0:1:9.0;]
+# SCrA_SE
+r_mis = [2.0:1:6.0;]
 mag_widths = [0.5:0.5:4;]
-T_maxs = [7000:1000:12000;]#:1000:15000;]
-lg10_Ṁs = [-10:0.2:-8;]
+T_maxs = [6000:1000:10000;]#:1000:15000;]
+lg10_Ṁs = [-8:0.2:-6;]
 i_angs = [40:5:80;]
 
-u = 3; l = 2
+u = 5; l = 2
 
 parameters = Vector{Float64}[]
 
@@ -179,17 +179,17 @@ println(n_iters, " ", n_models)
             end
         end
 
-        nonstat_ok = true
-        mag_nonstat = if nonstat_exist
-            TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
-        else
-            try 
-                local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
-                addnonlocal(local_mag, progress_output = false)
-            catch 
-                nonstat_ok = false
-            end
-        end
+        nonstat_ok = false
+        # mag_nonstat = if nonstat_exist
+        #     TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
+        # else
+        #     try 
+        #         local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
+        #         addnonlocal(local_mag, progress_output = false)
+        #     catch 
+        #         nonstat_ok = false
+        #     end
+        # end
 
         if stat_ok
             for i_ang in stat_angles

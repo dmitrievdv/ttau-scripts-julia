@@ -36,7 +36,7 @@ end
 
 r_mis = [2.0:1:10.0;]
 Ws = [1:0.2:4;]
-T_maxs = [8000:1000:15000;]
+T_maxs = [7000:1000:15000;]
 lgṀs = [-11:0.2:-8.4;]
 angs = [35:5:60;]
 
@@ -127,21 +127,54 @@ function plotNa(pars, names)
     mean_Na_τ = τNa.(pars[:,2], mean_nh)
     min_Na_τ = τNa.(pars[:,2], min_nh)
     max_Na_τ = τNa.(pars[:,2], max_nh)
-    plt = scatter(pars[:,2], min_Na_τ, yaxis = :log, label = "min Na τ")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
-    scatter!(plt, pars[:,2], max_Na_τ, label = "min Na τ")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
+    # plt = scatter(pars[:,2], min_Na_τ, yaxis = :log, label = "min Na τ")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
+    # scatter!(plt, pars[:,2], max_Na_τ, label = "min Na τ")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
                                                                                             #"", "5⋅10^{-11}", "", "7⋅10^{-11}",
                                                                                             #"", "", "1⋅10^{-10}"]))
-    plt = scatter!(plt, pars[:,2], mean_Na_τ, yaxis = :log, label = "mean Na τ", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))                                                                                      
-    # plot!(plt, yticks = ([1e8, 3e8, 5e8, 7e8,
-    #                       1e9, 3e9, 5e9, 7e9,
-    #                       1e10,3e10,5e10,7e10,
-    #                       1e11,3e11,5e11,7e11,
-    #                       1e12,3e12,5e12,7e12], 
-    #                      ["10^{8}", "3⋅10^{8}", "5⋅10^{8}", "7⋅10^{8}",
-    #                       "10^{9}", "3⋅10^{9}", "5⋅10^{9}", "7⋅10^{9}",
-    #                       "10^{10}","3⋅10^{10}","5⋅10^{10}","7⋅10^{10}",
-    #                       "10^{11}","3⋅10^{11}","5⋅10^{11}","7⋅10^{11}",
-    #                       "10^{12}","3⋅10^{12}","5⋅10^{12}","7⋅10^{12}"]))
+    plt = scatter(pars[:,2], mean_Na_τ, yaxis = :log, label = L"τ_\mathrm{Na}", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))
+    yticks = [0.001, 0.005, 0.01, 0.05, 0.1, 5, 1, 5, 10]                                                                                      
+    plot!(plt, yticks = (yticks, 
+                         yticks))
+    plot!(plt, xticks = (T_maxs, T_maxs))
 end
 
-plotNa(best_nonstat_pars, best_nonstat_names)
+function plotCaNa(pars, names)
+    computeltemodels(star, pars, names)
+    mean_nh = findmeannh(pars, names)
+    mean_Na_τ = τNa.(pars[:,2], mean_nh)
+    computeltemodels(star, pars, names)
+    mean_nh = findmeannh(pars, names)
+    mean_Ca_τ = τCa.(pars[:,2], mean_nh)
+    # plt = scatter(pars[:,2], min_Na_τ, yaxis = :log, label = "min Na τ")#, xaxis = :log, xlims = (2e-11, 1.2e-10))
+    # scatter!(plt, pars[:,2], max_Na_τ, label = "min Na τ")#, xticks = ([1e-11:1e-11:1e-10;], ["1⋅10^{-11}", "", "3⋅10^{-11}", 
+                                                                                            #"", "5⋅10^{-11}", "", "7⋅10^{-11}",
+                                                                                            #"", "", "1⋅10^{-10}"]))
+    plt = scatter(pars[:,2], mean_Na_τ, yaxis = :log, label = L"\mathrm{Na}", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))
+    scatter!(plt, pars[:,2], mean_Ca_τ, yaxis = :log, label = L"\mathrm{Ca}", xlims = (minimum(T_maxs)-500, maximum(T_maxs)+500))
+    yticks = [0.001, 0.005, 0.01, 0.05, 0.1, 5, 1, 5, 10]                                                                                      
+    plot!(plt, yticks = (yticks, 
+                         yticks))
+    plot!(plt, xticks = (T_maxs, T_maxs))
+    plot!(plt, xlabel = L"T,\ [K]", ylabel = L"\tau")
+end
+
+Ca_plt = plotCa(best_nonstat_pars, best_nonstat_names)
+Na_plt = plotNa(best_nonstat_pars, best_nonstat_names)
+CaNa_plt = plotCaNa(best_stat_pars, best_stat_names)
+
+ind_T9000 = findmodels(grid_nonstat_pars, [9000], [2], [100])
+ind_T8000 = findmodels(grid_nonstat_pars, [8000], [2], [100])
+ind_T10000 = findmodels(grid_nonstat_pars, [10000], [2], [100])
+
+best_ind_T9000 = ind_T9000[findmin(grid_nonstat_pars[ind_T9000,9])[2]]
+best_ind_T8000 = ind_T8000[findmin(grid_nonstat_pars[ind_T8000,9])[2]]
+best_ind_T10000 = ind_T10000[findmin(grid_nonstat_pars[ind_T10000,9])[2]]
+
+plt_nonstat_T9000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T9000)
+plt_stat_T9000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T9000)
+
+plt_nonstat_T8000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T8000)
+plt_stat_T8000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T8000)
+
+plt_nonstat_T10000 = plotmodel(grid_nonstat_pars, grid_nonstat_names, best_ind_T10000)
+plt_stat_T10000 = plotmodel(grid_stat_pars, grid_stat_names, best_ind_T10000)

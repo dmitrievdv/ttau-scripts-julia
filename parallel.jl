@@ -47,7 +47,7 @@ end
     line_name *= 'a' + u-1-l
 end
 
-star_name = "SCrA_SE"
+star_name = "RZPsc"
 star = Star(star_name)
 
 # PDS 70
@@ -58,20 +58,20 @@ star = Star(star_name)
 # i_angs = [35:5:65;]
 
 # RZ Psc
-# r_mis = [2.0:1:10.0;]
-# mag_widths = [1:0.2:4;]
-# T_maxs = [7000,8000]#:1000:15000;]
-# lg10_Ṁs = [-10:0.2:-8.4;]
-# i_angs = [35:5:60;]
+r_mis = [2.0:1:10.0;]
+mag_widths = [1:0.2:4;]
+T_maxs = [7000:1000:15000;]
+lg10_Ṁs = [-11:0.2:-8.4;]
+i_angs = [35:5:60;]
 
 # SCrA_SE
-r_mis = [2.0:1:6.0;]
-mag_widths = [0.5:0.5:4;]
-T_maxs = [6000:1000:10000;]#:1000:15000;]
-lg10_Ṁs = [-8:0.2:-6;]
-i_angs = [40:5:80;]
+# r_mis = [2.0:1:6.0;]
+# mag_widths = [0.5:0.5:4;]
+# T_maxs = [6000:1000:10000;]#:1000:15000;]
+# lg10_Ṁs = [-8:0.2:-6;]
+# i_angs = [40:5:80;]
 
-u = 5; l = 2
+u = 3; l = 2
 
 parameters = Vector{Float64}[]
 
@@ -167,34 +167,34 @@ println(n_iters, " ", n_models)
         stat_angles = stats_angles[model_id]
         nonstat_angles = nonstats_angles[model_id]
 
-        stat_ok = true
-        mag_stat = if stat_exist
-            TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
-        else
-            try 
-                local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
-                addnonlocal(local_mag, progress_output = false)
-            catch 
-                stat_ok = false
-            end
-        end
-
-        nonstat_ok = false
-        # mag_nonstat = if nonstat_exist
-        #     TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
+        stat_ok = false
+        # mag_stat = if stat_exist
+        #     TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
         # else
         #     try 
-        #         local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
+        #         local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
         #         addnonlocal(local_mag, progress_output = false)
         #     catch 
-        #         nonstat_ok = false
+        #         stat_ok = false
         #     end
         # end
+
+        nonstat_ok = true
+        mag_nonstat = if nonstat_exist
+            TTauUtils.Models.loadmodel(star, "$(model_name)_nonstat_nonlocal")
+        else
+            try 
+                local_mag = NonStationarySolidMagnetosphereNHCool("$(model_name)_nonstat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
+                addnonlocal(local_mag, progress_output = false)
+            catch 
+                nonstat_ok = false
+            end
+        end
 
         if stat_ok
             for i_ang in stat_angles
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 400)
+                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end
@@ -204,7 +204,7 @@ println(n_iters, " ", n_models)
             for i_ang in nonstat_angles
 #                 profile_name = "$(linename(u,l))_$i_ang"
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 400)
+                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end

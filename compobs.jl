@@ -275,7 +275,7 @@ end
 
 hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
 
-function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "")
+function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "", line = "Ha")
     # Assuming there is a grid
     # getting all file names
     star_name = star.name
@@ -292,12 +292,13 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     
     # counting profiles
     n_profiles = 0
+    line_length = length(line)
     for model_name in model_names
         for profile_file in readdir("stars/$star_name/$model_name")
             profile_name = profile_file[1:end-4]
             if profile_name != model_name
                 if prof_suffix != "" 
-                    if split(profile_name, "_")[end] == prof_suffix
+                    if (split(profile_name, "_")[end] == prof_suffix) & (profile_name[1:line_length] == line)
                         n_profiles += 1 
                     end
                 else
@@ -326,6 +327,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
         lg10Ṁ = model.Mdot; T_max = model.T_max; r_mi = model.geometry.r_mi; W = model.geometry.r_mo - r_mi
         profile_files = readdir("stars/$star_name/$model_name")
         deleteat!(profile_files, findall(name -> name == "$model_name.dat", profile_files))
+        deleteat!(profile_files, findall(name -> name[1:line_length] != line, profile_files))
         for k = 1:length(profile_files)
             # println("$model_name $star_name ")
             profile_name = profile_files[k][1:end-4]

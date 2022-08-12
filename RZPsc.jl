@@ -48,18 +48,18 @@ angs = [35:5:60;]
 # bound_nonstat_pars, bound_nonstat_names = boundpars(nonstat_pars, nonstat_names, (1, 10.0^(-11), 10.0^(-9.5)), (2, 1e4, 15e3), (3, 2, 11), (4, 1, 5), (5, 35, 60))
 
 gridded_stat_pars, gridded_stat_names = putongrid(stat_pars, stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
-gridded_nonstat_pars, gridded_nonstat_names = putongrid(nonstat_pars, nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
-x = correctnonstatgrid!(gridded_nonstat_pars, gridded_nonstat_names, gridded_stat_pars, gridded_stat_names)
+# gridded_nonstat_pars, gridded_nonstat_names = putongrid(nonstat_pars, nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+# x = correctnonstatgrid!(gridded_nonstat_pars, gridded_nonstat_names, gridded_stat_pars, gridded_stat_names)
 x = correctgridforcorotation!(gridded_stat_pars, corotationradius(star))
-x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
+# x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 grid_stat_pars, grid_stat_names = flattengrid(gridded_stat_pars, gridded_stat_names)
-grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
-savepars("paper-grid_lowT_RZPsc_stat", grid_stat_pars, grid_stat_names)
-savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
+# grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
+savepars("paper-grid_RZPsc_stat", grid_stat_pars, grid_stat_names)
+# savepars("paper-grid_lowT_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
 
 best_stat_pars, best_stat_names = bestmodels(grid_stat_pars, grid_stat_names)
-best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)
+# best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)
 
 function plotnh(pars, names)
     computeltemodels(star, pars, names)
@@ -82,7 +82,7 @@ function plotnh(pars, names)
                           "10^{12}","3⋅10^{12}","5⋅10^{12}","7⋅10^{12}"]))
 end
 
-plotnh(best_nonstat_pars, best_nonstat_names)
+plotnh(best_stat_pars, best_stat_names)
 
 Ca_τ = [6.84   6.14   6.15   6.73   7.73   7.97   7.01   5.42   3.72   2.41;
         1.67e2 1.55e2 1.85e2 1.96e2 1.69e2 1.18e2 7.31e1 4.33e1 2.58e1 1.56e1;
@@ -309,31 +309,31 @@ function chooseCaNainds(Ca_abs_dip, Na_abs_dip, Ca_thres, Na_thres)
 end
 
 Ca_abs_dip_best_stat = calcabsprofiledip(best_stat_pars, best_stat_names, τCa, 40, 200, 0.05, 0.1)
-Ca_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τCa, 40, 200, 0.05, 0.1)
+# Ca_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τCa, 40, 200, 0.05, 0.1)
 
 Na_abs_dip_best_stat = calcabsprofiledip(best_stat_pars, best_stat_names, τNa, 23, 200, 0.05, 0.1)
-Na_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τNa, 23, 200, 0.05, 0.1)
+# Na_abs_dip_best_nonstat = calcabsprofiledip(best_nonstat_pars, best_nonstat_names, τNa, 23, 200, 0.05, 0.1)
 
-Ca_nonstat_plt = scatter(best_nonstat_pars[:,2], Ca_abs_dip_best_nonstat)
+# Ca_nonstat_plt = scatter(best_nonstat_pars[:,2], Ca_abs_dip_best_nonstat)
 Ca_stat_plt = scatter(best_stat_pars[:,2], Ca_abs_dip_best_stat)
 
-Na_nonstat_plt = scatter(best_nonstat_pars[:,2], Na_abs_dip_best_nonstat)
+# Na_nonstat_plt = scatter(best_nonstat_pars[:,2], Na_abs_dip_best_nonstat)
 Na_stat_plt = scatter(best_stat_pars[:,2], Na_abs_dip_best_stat)
 
-CaNa_best_nonstat_inds = chooseCaNainds(Ca_abs_dip_best_nonstat, Na_abs_dip_best_nonstat, 0.1, 0.1)
+# CaNa_best_nonstat_inds = chooseCaNainds(Ca_abs_dip_best_nonstat, Na_abs_dip_best_nonstat, 0.1, 0.1)
 CaNa_best_stat_inds = chooseCaNainds(Ca_abs_dip_best_stat, Na_abs_dip_best_stat, 0.1, 0.1)
 
-CaNa_best_nonstat_pars = best_nonstat_pars[CaNa_best_nonstat_inds, :]
-CaNa_best_nonstat_names = best_nonstat_names[CaNa_best_nonstat_inds]
+# CaNa_best_nonstat_pars = best_nonstat_pars[CaNa_best_nonstat_inds, :]
+# CaNa_best_nonstat_names = best_nonstat_names[CaNa_best_nonstat_inds]
 
 CaNa_best_stat_pars = best_stat_pars[CaNa_best_stat_inds, :]
 CaNa_best_stat_names = best_stat_names[CaNa_best_stat_inds]
 
 CaNa_gridded_stat_pars, CaNa_gridded_stat_names = putongrid(CaNa_best_stat_pars, CaNa_best_stat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
-CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names = putongrid(CaNa_best_nonstat_pars, CaNa_best_nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
-x = correctnonstatgrid!(CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names, CaNa_gridded_stat_pars, CaNa_gridded_stat_names)
+# CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names = putongrid(CaNa_best_nonstat_pars, CaNa_best_nonstat_names, (lgṀs, (sigfig = 3, axis = :log)), T_maxs, r_mis, Ws, angs); ""
+# x = correctnonstatgrid!(CaNa_gridded_nonstat_pars, CaNa_gridded_nonstat_names, CaNa_gridded_stat_pars, CaNa_gridded_stat_names)
 x = correctgridforcorotation!(CaNa_gridded_stat_pars, corotationradius(star))
-x = correctgridforcorotation!(CaNa_gridded_nonstat_pars, corotationradius(star))
+# x = correctgridforcorotation!(CaNa_gridded_nonstat_pars, corotationradius(star))
 
 
 

@@ -342,13 +342,14 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             r_to_fit = r_obs_mod .- r_mod 
             # r_mod_obs = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
             # r_to_fit = r_obs .- r_mod_obs 
-            # fit_par = [2.0,50.0,0.00]
+            fit_par = [2.0,50.0,0.01]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
-            # fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
-            # fit_par = coef(fit) # [0.0,0.0]
-            # println(fit_par)
+            fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
+            # fit_par[3] = 0.01
+            fit_par = coef(fit) # [0.0,0.0]
+            println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = (r_obs_mod .- r_mod .+ fit_par[3]) .^ 2#) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+            res = (r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par)) .^ 2 #.+ fit_par[3]) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
             δ = sqrt(sum(res[abs.(v_mod) .≥ 30])/length(res[abs.(v_mod) .≥ 30]))
             println("$model_name $star_name $profile_name $δ")
@@ -530,7 +531,7 @@ end
 function correctnonstatgrid!(gridded_nonstat_pars, gridded_nonstat_names, gridded_stat_pars, gridded_stat_names)
     indeces = keys(gridded_stat_names)
     for index in indeces
-        if gridded_nonstat_pars[end, index] > 1e10
+        if gridded_nonstat_names[index][1] == "" 
             gridded_nonstat_pars[:, index] .= gridded_stat_pars[:, index]
             gridded_nonstat_names[index] .= gridded_stat_names[index]
         end
@@ -577,8 +578,9 @@ function getmeananderrors(gridded_pars, pars)
     for index in keys(δs)
         δ = δs[index]
         if δ < √2*σ
-            weight = 1/δ
-            #weight = exp(-((δ-σ)/σ)^2)
+            # weight = 1/δ
+            # weight = exp(-((δ-σ)/σ)^2)
+            weight = 1
             # δ = 1
             # println("lol")
             sum_weights += weight
@@ -599,8 +601,9 @@ function getmeananderrors(gridded_pars, pars)
     for index in keys(δs)
         δ = δs[index]
         if δ < √2*σ
-            weight = 1/δ
+            # weight = 1/δ
             # weight = exp(-((δ-σ)/σ)^2)
+            weight = 1
             # δ = 1
             for par_i = 1:n_p
                 cur_par = pars[par_i][index[par_i]]

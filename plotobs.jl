@@ -2,7 +2,7 @@ using Plots
 
 
 function plotmodel(pars, names, id)
-    plt = plot()
+    plt = plot(legend = :bottomright)
     model_name, profile_name = names[id]
     model = if checkmodel(model_name, star)
         TTauUtils.Models.loadmodel(star, model_name)
@@ -87,7 +87,7 @@ function plotδ(pars, names, δ_cut; la = 0.5)
     plt
 end
 
-function plotheat(pars, x_grid, y_grid)
+function plotheat(pars, x_grid, y_grid; kwargs...)
     gridded_pars, gridded_names = putongrid(pars, fill(["", ""], length(pars[:,1])), x_grid, y_grid)
     xs = if x_grid isa Tuple
         x_grid[1]
@@ -99,7 +99,7 @@ function plotheat(pars, x_grid, y_grid)
     else
         y_grid
     end
-    heatmap(xs, ys,  gridded_pars[9, :, :]', clims = (0, 0.1))
+    heatmap(xs, ys,  gridded_pars[9, :, :]'; kwargs...)
 end
 
 function plotδheatTM(gridded_pars, lgṀs, T_maxs, i_rm, i_W, i_ang; clims = (0,0.1))

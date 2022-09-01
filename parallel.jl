@@ -167,17 +167,17 @@ println(n_iters, " ", n_models)
         stat_angles = stats_angles[model_id]
         nonstat_angles = nonstats_angles[model_id]
 
-        stat_ok = false
-        # mag_stat = if stat_exist
-        #     TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
-        # else
-        #     try 
-        #         local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
-        #         addnonlocal(local_mag, progress_output = false)
-        #     catch 
-        #         stat_ok = false
-        #     end
-        # end
+        stat_ok = true
+        mag_stat = if stat_exist
+            TTauUtils.Models.loadmodel(star, "$(model_name)_stat_nonlocal")
+        else
+            try 
+                local_mag = StationarySolidMagnetosphereNHCool("$(model_name)_stat", star, r_mi, r_mo, Ṁ, T_max, 10, n_t = 20, progress_output = false)
+                addnonlocal(local_mag, progress_output = false)
+            catch 
+                stat_ok = false
+            end
+        end
 
         nonstat_ok = true
         mag_nonstat = if nonstat_exist

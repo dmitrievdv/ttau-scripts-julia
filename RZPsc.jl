@@ -60,6 +60,7 @@ savepars("paper-grid_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
 
 best_stat_pars, best_stat_names = bestmodels(grid_stat_pars, grid_stat_names)
 best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)
+computeltemodels(star, best_stat_pars, best_stat_names)
 
 function plotnh(pars, names)
     computeltemodels(star, pars, names)

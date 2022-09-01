@@ -74,7 +74,7 @@ function findmeanvgrad(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
         Ṁ, T_max, R_in, W = pars[i, 1:4]
         lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
         model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
-            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(lte_name, star, R_in, R_in + W, Ṁ, T_max, 10)
             savemodel(model)
             model
         else
@@ -116,7 +116,7 @@ function findmeannh(pars, names; star_dir = "stars", n_θ = 100, n_r = 100)
         Ṁ, T_max, R_in, W = pars[i, 1:4]
         lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
         model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
-            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(lte_name, star, R_in, R_in + W, Ṁ, T_max, 10)
             savemodel(model)
             model
         else
@@ -153,7 +153,7 @@ function findminmaxnh(pars, names; star_dir = "stars")
         Ṁ, T_max, R_in, W = pars[i, 1:4]
         lte_name = join(split(names[i][1], '_')[1:3], '_')*"_lte"
         model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
-            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+            model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(lte_name, star, R_in, R_in + W, Ṁ, T_max, 10)
             savemodel(model)
             model
         else
@@ -273,13 +273,14 @@ function hotspot_voigt_model(x, p)
     @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.01
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ 0.01
 
 function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "", line = "Ha")
     # Assuming there is a grid
     # getting all file names
     star_name = star.name
     model_names = readdir("stars/$star_name")
+    println(findall(name -> name == "90_15000_2-3_stat_nonlocal", model_names))
     
     suffix_words_count = length(split(suffix, "_"))
 
@@ -287,9 +288,16 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     deleteat!(model_names, findall(name -> name == "$star_name.dat", model_names))
 
     # clearing nonstat files
-    deleteat!(model_names, findall(name -> (join(split(name, '_')[end-suffix_words_count+1:end], '_') != suffix), model_names))
+    getsuffix = name -> join(split(name, '_')[end-suffix_words_count+1:end], '_')
+    suffixcheck = name -> getsuffix(name) != suffix
+    deleteat!(model_names, findall(suffixcheck, model_names))
     n_models = length(model_names)
-    
+    println(n_models)
+    println(suffixcheck("90_15000_2-3_stat_nonlocal"))
+    println('"', suffix, '"')
+    println('"', getsuffix("90_15000_2-3_stat_nonlocal"), '"')
+    println(findall(name -> name == "90_15000_2-3_stat_nonlocal", model_names))
+    return typeof(suffix), typeof(getsuffix("90_15000_2-3_stat_nonlocal"))
     # counting profiles
     n_profiles = 0
     line_length = length(line)
@@ -306,7 +314,6 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
                 end
             end
         end
-        
     end
 
     #reading observation profile
@@ -345,11 +352,11 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             fit_par = [2.0,50.0,0.01]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
             fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
-            # fit_par[3] = 0.01
+            fit_par[3] = 0.01
             fit_par = coef(fit) # [0.0,0.0]
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
-            res = (r_obs_mod .- r_mod .- hotspot_gauss_model(v_mod, fit_par)) .^ 2 #.+ fit_par[3]) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2
+            res = (r_obs_mod .- r_mod .- fit_par[3]) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2 #.- fit_par[3]) .^ 2 
             # δ = sum(res[abs.(v_obs) .> 0])/length(abs.(v_obs) .> 0)
             δ = sqrt(sum(res[abs.(v_mod) .≥ 30])/length(res[abs.(v_mod) .≥ 30]))
             println("$model_name $star_name $profile_name $δ")
@@ -547,7 +554,7 @@ function correctgridforcorotation!(gridded_pars, r_corr)
             r_mi = r_mis[i]; W = Ws[j]
             # println("$r_mi $W $(r_mi + W > r_cor_rounded) $r_corr $r_cor_rounded")
             if r_mi + W > r_cor_rounded
-                gridded_pars[end, :, :, i, j, :] .= 1.0
+                gridded_pars[end, :, :, i, j, :] .= 1e10
             end
         end
     end

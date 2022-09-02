@@ -292,12 +292,12 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     suffixcheck = name -> getsuffix(name) != suffix
     deleteat!(model_names, findall(suffixcheck, model_names))
     n_models = length(model_names)
-    println(n_models)
-    println(suffixcheck("90_15000_2-3_stat_nonlocal"))
-    println('"', suffix, '"')
-    println('"', getsuffix("90_15000_2-3_stat_nonlocal"), '"')
-    println(findall(name -> name == "90_15000_2-3_stat_nonlocal", model_names))
-    return typeof(suffix), typeof(getsuffix("90_15000_2-3_stat_nonlocal"))
+    # println(n_models)
+    # println(suffixcheck("90_15000_2-3_stat_nonlocal"))
+    # println('"', suffix, '"')
+    # println('"', getsuffix("90_15000_2-3_stat_nonlocal"), '"')
+    # println(findall(name -> name == "90_15000_2-3_stat_nonlocal", model_names))
+    # return typeof(suffix), typeof(getsuffix("90_15000_2-3_stat_nonlocal"))
     # counting profiles
     n_profiles = 0
     line_length = length(line)
@@ -675,6 +675,9 @@ function savepars(file, parss, namess)
         for i = 1:n_profiles
             pars = parss[i,:]
             names = namess[i]
+            if names[1] == ""
+                continue
+            end
             if names[1] != model_name
                 model_name = names[1]
                 println(io, "Model: $model_name")

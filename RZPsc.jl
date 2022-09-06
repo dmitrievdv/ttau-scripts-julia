@@ -16,9 +16,9 @@ using LinearAlgebra
 star = Star("RZPsc")
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+# stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
 # stat_pars = addfluxconstant(0.01, stat_pars, stat_names)
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+# nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
 # nonstat_pars = addfluxconstant(0.01, nonstat_pars, nonstat_names)
 # δs = pars[:,8]
 
@@ -35,8 +35,8 @@ function calcprofile(star, model_name, profile_name, angle, line; args...)
     saveprofile(profile, profile_name)
 end
 
-# @time stat_pars, stat_names = loadparameters("paper-grid_absonly_lowT_RZPsc_stat.dat", 4, 4)
-# @time nonstat_pars, nonstat_names = loadparameters("paper-grid_absonly_lowT_RZPsc_nonstat.dat", 4, 4)
+@time stat_pars, stat_names = loadparameters("paper-grid_RZPsc_stat.dat", 4, 4)
+@time nonstat_pars, nonstat_names = loadparameters("paper-grid_RZPsc_nonstat.dat", 4, 4)
 
 r_mis = [2.0:1:10.0;]
 Ws = [1:0.2:4;]

@@ -52,7 +52,7 @@ lgṀs = [-11:0.2:-8.4;]
 angs = [35:5:60;]
 
 
-alg = "HartNHCoolNonStat"
+alg = "HartNHCoolStat"
 suffix = algsuffix[alg]
 
 prof_suffix = "phot3crude"

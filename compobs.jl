@@ -487,7 +487,7 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
     grid_array = zeros(pars_length...)
     max_δ = maximum(pars[:, end])
     for index in keys(grid_array)
-        gridded_pars[end, index] = max_δ
+        gridded_pars[end, index] = 1e10
         for i in 1:n_grid
             i_ind = index[i]
             par = if log_axis[i]

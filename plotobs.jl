@@ -1,8 +1,8 @@
 using Plots 
 
 
-function plotmodel(pars, names, id)
-    plt = plot(legend = :bottomright)
+function plotmodel(pars, names, id; kwargs...)
+    plt = plot(legend = :bottomright; kwargs...)
     model_name, profile_name = names[id]
     model = if checkmodel(model_name, star)
         TTauUtils.Models.loadmodel(star, model_name)

@@ -41,9 +41,9 @@ function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix, prof_suffix
                 n_prof += 1
                 profile = HydrogenProfile(star, model, profile_name)
                 println(profile_name)
-                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat")
+                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", progress_output = false)
                 saveprofile(prof_spec, "$(profile_name)_$prof_suffix")
-                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true)
+                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true, progress_output = false)
                 saveprofile(prof_spec, "$(profile_name)_$(prof_suffix)-sini")
             end
         end

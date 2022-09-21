@@ -1,8 +1,8 @@
 using Plots 
 
 
-function plotmodel(pars, names, id)
-    plt = plot(legend = :bottomright)
+function plotmodel(pars, names, id; kwargs...)
+    plt = plot(legend = :bottomright; kwargs...)
     model_name, profile_name = names[id]
     model = if checkmodel(model_name, star)
         TTauUtils.Models.loadmodel(star, model_name)
@@ -22,9 +22,9 @@ function plotmodel(pars, names, id)
     v_mag, r_mag = getvandr(profile_nophot)
     r_gauss_mod = r_mod .+ hotspot_gauss_model(v_mod, pars[id,6:end-1])
     # plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "all")
-    plot!(plt, v_mod, hotspot_gauss_model(v_mod, pars[id,6:end-1]) .+ 1, lc = :red, la = 0.5, ls =:dash, label = "hotspot")
+    plot!(plt, v_mod[abs.(v_mod) .≤ 60], hotspot_gauss_model(v_mod[abs.(v_mod) .≤ 60], pars[id,6:end-1]) .+ 1 .- pars[id, end-1], lc = :red, la = 0.5, ls =:dash, label = "center")
     plot!(plt, v_mod, r_obs_mod, lc = :black, label = "obs")
-    plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "mag + spot")
+    plot!(plt, v_mod, r_gauss_mod, lc = :red, label = "mag + center")
     plot!(plt, v_mag, r_mag, lc = :orange, la = 1, label = "mag")
     r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
     plot!(plt, v_mod, r_obs_mod .- r_gauss_mod .+ 1, lc = :black, ls = :dash, la = 0.3, label = "mod - obs")

@@ -273,7 +273,7 @@ function hotspot_voigt_model(x, p)
     @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.01
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ 0.01
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ abs(p[3])
 
 function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "", line = "Ha")
     # Assuming there is a grid
@@ -352,8 +352,9 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             fit_par = [2.0,50.0,0.01]
             # fit = curve_fit(hotspot_gauss_model, v_obs, r_to_fit, fit_par)
             fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
-            fit_par[3] = 0.01
+            # fit_par[3] = 0.01
             fit_par = coef(fit) # [0.0,0.0]
+            fit_par[3] = abs(fit_par[3])
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))
             res = (r_obs_mod .- r_mod .- fit_par[3]) .^ 2 #.- hotspot_gauss_model(v_mod, fit_par)) .^ 2 #.- fit_par[3]) .^ 2 
@@ -487,7 +488,7 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
     grid_array = zeros(pars_length...)
     max_δ = maximum(pars[:, end])
     for index in keys(grid_array)
-        gridded_pars[end, index] = max_δ
+        gridded_pars[end, index] = 1e10
         for i in 1:n_grid
             i_ind = index[i]
             par = if log_axis[i]

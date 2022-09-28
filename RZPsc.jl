@@ -16,9 +16,9 @@ using LinearAlgebra
 star = Star("RZPsc")
 
 v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude")
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude-sini")
 # stat_pars = addfluxconstant(0.01, stat_pars, stat_names)
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude")
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude-sini")
 # nonstat_pars = addfluxconstant(0.01, nonstat_pars, nonstat_names)
 # δs = pars[:,8]
 

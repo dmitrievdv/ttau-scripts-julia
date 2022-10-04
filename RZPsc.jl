@@ -144,7 +144,7 @@ function calcabsprofiledip(par :: Vector{Float64}, name :: Vector{S}, τfunc, at
     # println(split(model_name, '_'))
     lte_name = join(split(model_name, '_')[1:3], '_')*"_lte"
     model = if !isfile("$star_dir/$(star.name)/$lte_name/$lte_name.dat")
-        model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(model_name, star, R_in, R_in + W, Ṁ, T_max, 10)
+        model = TTauUtils.Models.SolidMagnetosphereNHCoolLTE(lte_name, star, R_in, R_in + W, Ṁ, T_max, 10)
         savemodel(model)
         model
     else

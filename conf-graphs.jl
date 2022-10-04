@@ -172,52 +172,52 @@ clims = (0, 0.1), xlabel = L"T_\mathrm{max},\ \mathrm{K}", ylabel = L"\lg\dot{M}
 savefig(conf_path*"stat_cana_MT.pdf")
 
 plotheat(Matrix(nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"nonstat_all_RI.pdf")
 
 plotheat(Matrix(best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"nonstat_best_RI.pdf")
 
 plotheat(Matrix(CaNa_best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"nonstat_cana_RI.pdf")
 
-plotheat(Matrix(nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+plotheat(Matrix(stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"stat_all_RI.pdf")
 
-plotheat(Matrix(best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+plotheat(Matrix(best_stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"stat_best_RI.pdf")
 
-plotheat(Matrix(CaNa_best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+plotheat(Matrix(CaNa_best_stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
 savefig(conf_path*"stat_cana_RI.pdf")
 
 
-plotheat(Matrix(nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
-savefig(conf_path*"nonstat_all_RI.pdf")
+plotheat(Matrix(stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+savefig(conf_path*"stat_all_RW.pdf")
 
-plotheat(Matrix(best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
-savefig(conf_path*"nonstat_best_RI.pdf")
+plotheat(Matrix(best_stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+savefig(conf_path*"stat_best_RW.pdf")
 
-plotheat(Matrix(CaNa_best_nonstat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
-savefig(conf_path*"nonstat_cana_RI.pdf")
+plotheat(Matrix(CaNa_best_stat_pars), (r_mis, (index = 3,)), (angs, (index = 5,)), 
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"i,\ \degree")
+savefig(conf_path*"stat_cana_RW.pdf")
 
 plotheat(Matrix(nonstat_pars), (r_mis, (index = 3,)), (Ws, (index = 4,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
 savefig(conf_path*"nonstat_all_RW.pdf")
 
 plotheat(Matrix(best_nonstat_pars), (r_mis, (index = 3,)), (Ws, (index = 4,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
 savefig(conf_path*"nonstat_best_RW.pdf")
 
 plotheat(Matrix(CaNa_best_nonstat_pars), (r_mis, (index = 3,)), (Ws, (index = 4,)), 
-         clims = (0, 0.1), xlabel = L"r_\mathrm{mi},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
+         clims = (0, 0.1), xlabel = L"R_\mathrm{in},\ \mathrm{R_{star}}", ylabel = L"W,\ \mathrm{R_{star}}")
 savefig(conf_path*"nonstat_cana_RW.pdf")
 
 

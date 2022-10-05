@@ -147,6 +147,7 @@ end
 n_proc_models = findprocmodels(n_proc, n_models)
 n_iters = n_models ÷ n_proc
 println(n_iters, " ", n_models)
+phot_spec = TTauUtils.Profiles.readpolluxspecfile("spec/RZ_Psc_Ha_syn_unwid_corr.dat", 3, 2)
 # println(stats_angles)
 # println(nonstats_angles)
 
@@ -194,7 +195,7 @@ println(n_iters, " ", n_models)
         if stat_ok
             for i_ang in stat_angles
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.1, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
+                prof = HydrogenProfileDoppler(mag_stat, u, l, i_ang, 0.05, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end
@@ -204,7 +205,7 @@ println(n_iters, " ", n_models)
             for i_ang in nonstat_angles
 #                 profile_name = "$(linename(u,l))_$i_ang"
 #                 println(profile_name)
-                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.05, 0.05, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
+                prof = HydrogenProfileDoppler(mag_nonstat, u, l, i_ang, 0.05, 0.1, 0.1, 50, progress_output = false, blue_v_max = 300, red_v_max = 600)
                 push!(proc_profs, prof)
 #                 println(prof.orientation)
             end
@@ -220,7 +221,11 @@ println(n_iters, " ", n_models)
 #         u = prof.upper_level
 #         l = prof.lower_level
         profile_name = "$(linename(u,l))_$i_ang"
+        prof_phot = TTauUtils.Profiles.addphotospherespec(prof, 0.1, phot_spec, progress_output = false)
+        prof_phot_vsini = TTauUtils.Profiles.addphotospherespec(prof, 0.1, phot_spec, progress_output = false, sinicorr = true)
         saveprofile(prof, profile_name)
+        saveprofile(prof_phot, profile_name*"_phot")
+        saveprofile(prof_phot, profile_name*"_phot-vsini")
         println(profile_name, " ", prof.model.name)
     end
     println("$iter_id from $n_iters")

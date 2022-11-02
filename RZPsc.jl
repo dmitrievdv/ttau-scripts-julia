@@ -15,10 +15,10 @@ using LinearAlgebra
 
 star = Star("RZPsc")
 
-v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat")
-stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot3crude-sini")
+v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat", flux_const = -0.012)
+stat_pars, stat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "stat_nonlocal", prof_suffix = "phot-vsini", flux_const = -0.012)
 # stat_pars = addfluxconstant(0.01, stat_pars, stat_names)
-nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot3crude-sini")
+nonstat_pars, nonstat_names = readmodels(star, "spec/RZPsc_16-11-2013_proc.dat", "nonstat_nonlocal", prof_suffix = "phot-vsini", flux_const = -0.012)
 # nonstat_pars = addfluxconstant(0.01, nonstat_pars, nonstat_names)
 # δs = pars[:,8]
 
@@ -35,10 +35,10 @@ function calcprofile(star, model_name, profile_name, angle, line; args...)
     saveprofile(profile, profile_name)
 end
 
-# @time stat_pars, stat_names = loadparameters("paper-grid_RZPsc_stat.dat", 4, 4)
-# @time nonstat_pars, nonstat_names = loadparameters("paper-grid_RZPsc_nonstat.dat", 4, 4)
+# @time stat_pars, stat_names = loadparameters("paper-grid_RZPsc-corr_stat.dat", 4, 4)
+# @time nonstat_pars, nonstat_names = loadparameters("paper-grid_RZPsc-corr_nonstat.dat", 4, 4)
 
-r_mis = [2.0:1:10.0;]
+r_mis = [2.0:1:7.0;]
 Ws = [1:0.2:4;]
 T_maxs = [7000:1000:15000;]
 lgṀs = [-11:0.2:-8.4;]
@@ -55,8 +55,8 @@ x = correctgridforcorotation!(gridded_nonstat_pars, corotationradius(star))
 
 grid_stat_pars, grid_stat_names = flattengrid(gridded_stat_pars, gridded_stat_names)
 grid_nonstat_pars, grid_nonstat_names = flattengrid(gridded_nonstat_pars, gridded_nonstat_names)
-savepars("paper-grid_RZPsc_stat", grid_stat_pars, grid_stat_names)
-savepars("paper-grid_RZPsc_nonstat", grid_nonstat_pars, grid_nonstat_names)
+savepars("paper-grid_RZPsc-corr_stat", grid_stat_pars, grid_stat_names)
+savepars("paper-grid_RZPsc-corr_nonstat", grid_nonstat_pars, grid_nonstat_names)
 
 best_stat_pars, best_stat_names = bestmodels(grid_stat_pars, grid_stat_names)
 best_nonstat_pars, best_nonstat_names = bestmodels(grid_nonstat_pars, grid_nonstat_names)

@@ -192,7 +192,7 @@ function computeltemodels(star, pars, names; star_dir = "stars", args...)
     end
 end
 
-function readobservation(filename :: AbstractString)
+function readobservation(filename :: AbstractString; flux_const = 0.0)
     r_obs = Float64[]
     v_obs = Float64[]
     for line in readlines(filename)
@@ -200,7 +200,7 @@ function readobservation(filename :: AbstractString)
             push!.([v_obs, r_obs], parse.(Float64, split(line)))
         end
     end
-    v_obs, r_obs
+    v_obs, r_obs .+ flux_const
 end
 
 function absorbtionmeansquares(v_obs, r_obs, v_mod, r_mod) # Assuming v_mod and v_obs are sorted
@@ -270,12 +270,12 @@ function voigt(x, σ, γ)
 end
 
 function hotspot_voigt_model(x, p)
-    @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3]) .+ 0.012
+    @. voigt(x, p[2], p[3])*p[1]/voigt(0, p[2], p[3])
 end
 
-hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2)) .+ 0.012
+hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))
 
-function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "", line = "Ha")
+function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffix = "", line = "Ha", flux_const = 0.0)
     # Assuming there is a grid
     # getting all file names
     star_name = star.name
@@ -288,7 +288,14 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     deleteat!(model_names, findall(name -> name == "$star_name.dat", model_names))
 
     # clearing nonstat files
-    getsuffix = name -> join(split(name, '_')[end-suffix_words_count+1:end], '_')
+    function getsuffix(name) 
+        words = split(name, '_')
+        if length(words) < suffix_words_count
+            return ""
+        end
+        suffix_words = split(name, '_')[end-suffix_words_count+1:end]
+        join(suffix_words, '_')
+    end
     suffixcheck = name -> getsuffix(name) != suffix
     deleteat!(model_names, findall(suffixcheck, model_names))
     n_models = length(model_names)
@@ -317,7 +324,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
     end
 
     #reading observation profile
-    v_obs, r_obs = readobservation(obs_file)
+    v_obs, r_obs = readobservation(obs_file, flux_const = flux_const)
 
     # reading models and parameters
     models = []
@@ -354,7 +361,7 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
             fit = curve_fit(hotspot_gauss_model, v_mod, r_to_fit, fit_par) # <- this
             # fit_par[3] = 0.01
             fit_par = coef(fit) # [0.0,0.0]
-            fit_par[3] = 0.012
+            fit_par[3] = 0.0
             fit_par[3] = abs(fit_par[3])
             println(fit_par)
             # res = abs.(r_mod_obs .- r_obs .+ hotspot_gauss_model(v_obs, fit_par))

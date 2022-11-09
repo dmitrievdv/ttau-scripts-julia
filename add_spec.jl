@@ -1,57 +1,86 @@
-using TTauUtils
 using SMTPClient
+using Distributed
+@everywhere using TTauUtils
 
-function addphotspectomodels(star :: TTauUtils.AbstractStar, suffix, prof_suffix)
-    # Assuming there is a grid
-    # getting all file names
-    star_name = star.name
-    model_names = readdir("stars/$star_name")
-    
-    # deleting star file
-    deleteat!(model_names, findall(name -> name == "RZPsc.dat", model_names))
+n_proc = 5
 
-    # clearing nonstat files
-    deleteat!(model_names, findall(name -> (join(split(name, '_')[4:end], '_') != suffix), model_names))
-    n_models = length(model_names)
-    
-    # counting profiles
-    n_profiles = 0
-    for model_name in model_names
-        n_profiles += length(readdir("stars/$star_name/$model_name")) - 1
+@everywhere function linename(u, l)
+    line_name = ""
+    if l == 2
+        line_name *= 'H'
     end
-
-    # reading models and parameters
-    models = []
-    n_models = length(model_names)
-    n_model = 0
-    names = Vector{String}[]
-    for i = 1:n_models
-        model_name = model_names[i]
-        model = TTauUtils.Models.loadmodel(star, model_name)
-        lg10Ṁ = model.Mdot; T_max = model.T_max; r_mi = model.geometry.r_mi; W = model.geometry.r_mo - r_mi
-        profile_files = readdir("stars/$star_name/$model_name")
-        n_prof = 0
-        deleteat!(profile_files, findall(name -> name == "$model_name.dat", profile_files))
-        println(model_name)
-        for k = 1:length(profile_files)
-            profile_name = profile_files[k][1:end-4]
-            prof_with_spec = (length(split(profile_name, "_")) > 2)
-            spec_already_added = isfile("stars/$star_name/$model_name/$(profile_name)_$(prof_suffix).dat")
-            if !(prof_with_spec | spec_already_added)
-                n_prof += 1
-                profile = HydrogenProfile(star, model, profile_name)
-                println(profile_name)
-                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", progress_output = false)
-                saveprofile(prof_spec, "$(profile_name)_$prof_suffix")
-                prof_spec = TTauUtils.addphotosphespecdoppler(profile, 0.1, "spec/RZ_Psc_Ha_syn_unwid_corr.dat", sinicorr = true, progress_output = false)
-                saveprofile(prof_spec, "$(profile_name)_$(prof_suffix)-sini")
-            end
-        end
+    if l == 3
+        line_name *= "Pa"
     end
+    if l == 4
+        line_name *= "Br"
+    end
+    line_name *= 'a' + u-1-l
 end
 
-addphotspectomodels(Star("RZPsc"), "stat_nonlocal", "phot3crude")
-addphotspectomodels(Star("RZPsc"), "nonstat_nonlocal", "phot3crude")
+phot_spec = TTauUtils.Profiles.readpolluxspecfile("spec/RZ_Psc_Ha_syn_unwid_corr.dat", 3, 2)
+
+star_name = "RZPsc"
+star = Star(star_name)
+
+model_names = readdir("stars/$star_name")
+deleteat!(model_names, findall(name -> name == "$star_name.dat", model_names))
+deleteat!(model_names, findall(name -> split(name, '_')[end] == "lte", model_names))
+
+n_models = length(model_names)
+models = Array{TTauUtils.Models.HydrogenModel, 1}(undef, n_proc)
+angs = [35:5.0:60;]
+
+
+n_iters = n_models ÷ n_proc
+
+u, l = 3, 2
+
+@time for iter_id = 100:n_iters
+    n_models_iter = n_proc
+    println("$iter_id of $n_iters")
+    proc_iter_start = iter_id*n_proc + 1
+    proc_iter_end = (iter_id+1)*n_proc
+    if proc_iter_end > n_models
+        n_models_iter = n_models % n_proc + 1
+        proc_iter_end = n_models
+    end
+
+    for model_id = proc_iter_start:proc_iter_end
+        i = model_id - proc_iter_start + 1
+        model = loadmodel(star, model_names[model_id])
+        models[i] = model
+    end
+    # profs = Array{TTauUtils.Profiles.HydrogenProfile, 1}(undef, 0)
+    profs = @distributed vcat for model_id = 1:n_models_iter
+        model = models[model_id]
+        proc_profs = Array{TTauUtils.Profiles.HydrogenProfile, 1}(undef, 0)
+        for ang in angs
+            int_ang = round(Int, ang)
+            profile_name = "$(linename(u,l))_$int_ang"
+            # print("stars/$star_name/$(model.name)/$profile_name"*"_phot_vsini.dat")
+            if isfile("stars/$star_name/$(model.name)/$profile_name"*"_phot_vsini.dat")
+                # println(" file found")
+                mv("stars/$star_name/$(model.name)/$profile_name"*"_phot_vsini.dat", "stars/$star_name/$(model.name)/$profile_name"*"_phot-vsini.dat", force = true)
+                continue
+            end
+            try 
+                prof = HydrogenProfile(star, model, profile_name)
+                prof_phot_vsini = TTauUtils.Profiles.addphotospherespec(prof, 0.1, phot_spec, progress_output = false, sinicorr = true)
+                push!(proc_profs, prof_phot_vsini)
+            catch
+                #
+            end
+        end
+        proc_profs
+    end
+    for prof in profs
+        i_ang = round(Int, prof.orientation.i/π*180)
+        profile_name = "$(linename(u,l))_$i_ang"
+        saveprofile(prof, profile_name*"_phot-vsini")
+        println(prof.model.name, " ", profile_name)
+    end
+end
 
 opt = SendOptions(
   isSSL = true,

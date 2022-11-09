@@ -55,7 +55,7 @@ angs = [35:5:60;]
 alg = "HartNHCoolNonStat"
 suffix = algsuffix[alg]
 
-prof_suffix = "phot3crude"
+prof_suffix = "phot"
 u = 3; l = 2
 
 line = linename(u, l)

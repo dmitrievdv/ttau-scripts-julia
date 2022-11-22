@@ -1,3 +1,4 @@
+# using Distributed
 using TTauUtils
 using Dierckx
 using Interpolations
@@ -380,46 +381,6 @@ function readmodels(star :: TTauUtils.AbstractStar, obs_file, suffix; prof_suffi
         end
     end
 
-    # deleting not-on-grid points
-    # n_par = length(parameters[1,1:end-1])
-    # similar_points = zeros(Int, n_profiles)
-    # similar_points_occurences = Int[]
-    # similar_points_values = Int[]
-    # for i=1:n_profiles
-    #     similar_pars = zeros(n_par)
-    #     for j=1:n_profiles
-    #         if j == i
-    #             similar_points[i] += 1
-    #         else
-    #             for k=1:n_par
-    #                 if abs(parameters[i, k] - parameters[j, k])/parameters[i,k] < 1e-5
-    #                     similar_points[i] += 1
-    #                     similar_pars[k] += 1
-    #                     break
-    #                 end
-    #             end
-    #         end
-    #     end
-    #     loc = findfirst(n -> n == similar_points[i], similar_points_values)
-    #     if isnothing(loc)
-    #         push!(similar_points_occurences, 1)
-    #         push!(similar_points_values, similar_points[i])
-    #     else
-    #         similar_points_occurences[loc] += 1
-    #     end
-    # end
-
-    # for (val, occ) in zip(similar_points_values, similar_points_occurences)
-    #     println(val, " ", occ)
-    # end
-
-    # # similar_points_summed = dropdims(sum(similar_points, dims = 2), dims = 2)
-    # # n_grid = median(sum(similar_points_summed))
-
-    # deleteat!(model_names, findall(n -> n < n_grid, similar_points_summed))
-    # println(n_grid, " ", length(model_names))
-    # println(n_model)
-    # println(parameters)
     return parameters, names
 end
 
@@ -459,7 +420,7 @@ function findnearTmodels(T_max, pars, names, threshold; T_threshold = 10)
 
 end
 
-function putongrid(pars :: Matrix{Float64}, names, grid...)
+function putongrid(pars :: Matrix{Float64}, names, grid...; empty = 1e10)
     n_pars = length(pars[1,:])
     n_grid = length(grid)
     println(n_grid)
@@ -497,7 +458,7 @@ function putongrid(pars :: Matrix{Float64}, names, grid...)
     grid_array = zeros(pars_length...)
     max_δ = maximum(pars[:, end])
     for index in keys(grid_array)
-        gridded_pars[end, index] = 1e10
+        gridded_pars[end, index] = empty
         for i in 1:n_grid
             i_ind = index[i]
             par = if log_axis[i]

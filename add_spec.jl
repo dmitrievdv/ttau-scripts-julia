@@ -1,8 +1,12 @@
 using SMTPClient
 using Distributed
+
+n_proc = 10
+addprocs(n_proc)
+
 @everywhere using TTauUtils
 
-n_proc = 5
+
 
 @everywhere function linename(u, l)
     line_name = ""
@@ -36,7 +40,7 @@ n_iters = n_models ÷ n_proc
 
 u, l = 3, 2
 
-@time for iter_id = 100:n_iters
+@time for iter_id = 1:n_iters
     n_models_iter = n_proc
     println("$iter_id of $n_iters")
     proc_iter_start = iter_id*n_proc + 1

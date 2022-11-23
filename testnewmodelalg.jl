@@ -10,8 +10,14 @@ using LinearAlgebra
 # using SpecialFunctions
 # using Printf
 using Plots
+# using Distributed
 
-include("compobs.jl")
+n_procs = 4
+# addprocs(n_procs)
+# @everywhere using TTauUtils
+using TTauUtils
+
+# include("compobs.jl")
 
 
 # stat_pars, stat_names = loadparameters("paper-grid_RZPsc-corr_stat.dat", 4, 4)
@@ -245,12 +251,54 @@ function computemodels(names, pars, star)
     model_pars = pars[:, 1]
     for i_prof = 2:n_profs
         model_name, profile_name = split(names[i_prof], "/")
-        if model_name in model_names
-            continue
-        else
+        if !(model_name in model_names)
             push!(model_names, model_name)
             model_pars = [model_pars pars[:, i_prof]]
         end
+    end
+
+    n_models = length(model_names)
+    n_iter = n_models ÷ n_procs
+
+    for i_iter = 1:n_iter
+        iter_start = (i_iter-1)*n_procs + 1
+        iter_end_outside = (i_iter*n_procs > n_models)
+        iter_end = iter_end_outside*n_models + !iter_end_outside*i_iter*n_procs
+        println(i_iter, " ", model_names[iter_start:iter_end])
+        # distributed model loop...
+        # saving mdels...
+    end
+
+    
+
+    n_iter = n_profs ÷ n_procs
+
+    for i_iter = 1:n_iter
+        iter_start = (i_iter-1)*n_procs + 1
+        iter_end_outside = (i_iter*n_procs > n_profs)
+        iter_end = iter_end_outside*n_profs + !iter_end_outside*i_iter*n_procs
+        iter_range = iter_start:iter_end
+        iter_length = length(iter_range)
+        iter_models = String[] # HydrogenModel in the future...
+        profiles_iter_model_indeces = zeros(Int, iter_length)
+
+        for i_prof_iter = 1:iter_length
+            i_prof = iter_range[i_prof_iter]
+            model_name, profile_name = split(names[i_prof], "/")
+            if !(model_name in iter_models)
+                push!(iter_models, model_name) # loadmodel in the future...
+                profiles_iter_model_indeces[i_prof_iter] = length(iter_models)
+            end
+        end
+
+        print("$i_iter: ")
+        for i_prof_iter = 1:iter_length  # distributed in the future...
+            i_prof = iter_range[i_prof_iter]
+            i_model = profiles_iter_model_indeces[i_prof_iter]
+            print("($i_prof, $i_model, $(names[i_prof])) ")
+        end
+        println("")
+        # saving profiles...
     end
 end
 

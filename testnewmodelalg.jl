@@ -2,7 +2,7 @@ using StaticArrays
 using LinearAlgebra
 # using TTauUtils
 # using Dierckx
-# using Interpolations
+
 # using Statistics
 # using LsqFit
 # using Plots
@@ -10,12 +10,14 @@ using LinearAlgebra
 # using SpecialFunctions
 # using Printf
 using Plots
-# using Distributed
+using Distributed
 
-n_procs = 4
-# addprocs(n_procs)
+n_procs = 8
+addprocs(n_procs)
 # @everywhere using TTauUtils
-using TTauUtils
+# using LsqFit
+@everywhere using Interpolations
+@everywhere using TTauUtils
 
 # include("compobs.jl")
 
@@ -132,7 +134,7 @@ function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empt
     grid = initial_grid
     push!(plots, plotgrid(grid, dims))
     while split_n ≤ splits
-        splitted_grid = splitgrid(grid)
+        splitted_grid = splitgrid(grid, empty = empty)
         calculated = fill(false, size(splitted_grid))
         # to_calculate = fill(false, size(splitted_grid))
         indeces_to_calculate = CartesianIndex[]
@@ -145,8 +147,6 @@ function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empt
                 # println(splitted_index)
                 # print(sum(calculated), " ")
                 found = findtocalculate!(splitted_index, neighbours, calculated)
-                # print(length(found), "(", length(neighbours), ") ")
-                # println(sum(calculated))
                 append!(indeces_to_calculate, found)
             end
         end
@@ -243,35 +243,110 @@ function gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, lin
     return names, pars
 end
 
-function computemodels(names, pars, star)
+function readobservation(filename :: AbstractString; flux_const = 0.0)
+    r_obs = Float64[]
+    v_obs = Float64[]
+    for line in readlines(filename)
+        if !isempty(line)
+            push!.([v_obs, r_obs], parse.(Float64, split(line)))
+        end
+    end
+    v_obs, r_obs .+ flux_const
+end
+
+@everywhere function velocitiesmodtoobs(v_obs, r_obs, v_mod, r_mod) # Assuming v_mod and v_obs are sorted
+    n_points = 0
+    n_obs = length(v_obs)
+    squares = 0.0
+    r_mod_obs = zeros(n_obs)
+    model = interpolate((v_mod,), r_mod, Gridded(Linear()))
+    v_min = minimum(v_mod)
+    v_max = maximum(v_mod)
+    for (i,v) in enumerate(v_obs)
+        r_mod_obs[i] = if (v < v_min) | (v > v_max)
+            r_obs[i]
+        else
+            model(v)
+        end
+    end
+    return r_mod_obs
+end
+
+@everywhere function velocitiesobstomod(v_mod, r_mod, v_obs, r_obs) # Assuming v_mod and v_obs are sorted
+    r_obs_mod = velocitiesmodtoobs(v_mod, r_mod, v_obs, r_obs)
+    return r_obs_mod
+end
+
+# hotspot_gauss_model(x, p) = @. p[1]*exp(-x^2/(2*p[2]^2))
+
+@everywhere function getvandr(profile :: TTauUtils.HydrogenProfile)
+    u = profile.upper_level; l = profile.lower_level
+    ν_0 = TTauUtils.HydrogenPopulations.linefrequency(u,l)
+    v_prof = (ν_0 .- profile.frequencies) / ν_0*3e5 
+    r_prof = profile.profile
+    if v_prof[1] > 0.0
+        reverse!(v_prof)
+        reverse!(r_prof)
+    end
+    return v_prof, r_prof
+end
+
+function computemodels(names, pars, star, line)
     model_names = String[]
     n_pars, n_profs = size(pars)
-    model_name, profile_name = split(names[1], "/")
-    push!(model_names, model_name)
-    model_pars = pars[:, 1]
-    for i_prof = 2:n_profs
-        model_name, profile_name = split(names[i_prof], "/")
-        if !(model_name in model_names)
+    δs = zeros(n_profs)
+    model_name, profile_name = String.(split(names[1], "/"))
+    model_names = []
+    model_pars = Float64[]
+    for i_prof = 1:n_profs
+        model_name, profile_name = String.(split(names[i_prof], "/"))
+        model_exist = isfile("stars/$(star.name)/$model_name/$model_name.dat")
+        if !(model_name in model_names) & !(model_exist)
             push!(model_names, model_name)
-            model_pars = [model_pars pars[:, i_prof]]
+            if isempty(model_pars)
+                model_pars = pars[1:4, i_prof]
+            else
+                model_pars = [model_pars pars[1:4, i_prof]]
+            end
         end
     end
 
+    flux_const = -0.012
+
+    u,l = line
+    phot_spec = TTauUtils.Profiles.readpolluxspecfile("spec/RZ_Psc_Ha_syn_unwid_corr.dat", u, l)
+    v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat", flux_const = flux_const)
+
     n_models = length(model_names)
-    n_iter = n_models ÷ n_procs
+    println(n_models)
+    n_iter = if n_models % n_procs == 0
+        n_models ÷ n_procs
+    else
+        n_models ÷ n_procs + 1
+    end
 
     for i_iter = 1:n_iter
         iter_start = (i_iter-1)*n_procs + 1
         iter_end_outside = (i_iter*n_procs > n_models)
         iter_end = iter_end_outside*n_models + !iter_end_outside*i_iter*n_procs
-        println(i_iter, " ", model_names[iter_start:iter_end])
-        # distributed model loop...
-        # saving mdels...
+        println("model iter $i_iter from $n_iter")
+        iter_models = @distributed vcat for i_model = iter_start:iter_end
+            lgṀ, T_max, R_in, W = model_pars[:,i_model]
+            model_name = model_names[i_model]
+            model = TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+            [model]
+        end
+        
+        for model in iter_models
+            savemodel(model)
+        end
     end
-
     
-
-    n_iter = n_profs ÷ n_procs
+    n_iter = if n_profs % n_procs == 0
+        n_profs ÷ n_procs
+    else
+        n_profs ÷ n_procs + 1
+    end
 
     for i_iter = 1:n_iter
         iter_start = (i_iter-1)*n_procs + 1
@@ -279,30 +354,53 @@ function computemodels(names, pars, star)
         iter_end = iter_end_outside*n_profs + !iter_end_outside*i_iter*n_procs
         iter_range = iter_start:iter_end
         iter_length = length(iter_range)
-        iter_models = String[] # HydrogenModel in the future...
+        iter_models = [] 
         profiles_iter_model_indeces = zeros(Int, iter_length)
+
+        println("prof iter $i_iter from $n_iter")
+        for i_prof_iter = 1:iter_length
+            i_prof = iter_range[i_prof_iter]
+            model_name, profile_name = String.(split(names[i_prof], "/"))
+            if !(model_name in iter_models)
+                push!(iter_models, loadmodel(star, model_name))
+                profiles_iter_model_indeces[i_prof_iter] = length(iter_models)
+            end
+            # print("($i_prof, $(length(iter_models)), $(names[i_prof])) ")
+        end
+        println("")
+        
+        iter_profiles = @distributed vcat for i_prof_iter = 1:iter_length
+            profiles = []
+            i_prof = iter_range[i_prof_iter]
+            i_model = profiles_iter_model_indeces[i_prof_iter]
+            model_name, profile_name = String.(split(names[i_prof], "/"))
+            profile_nophot = HydrogenProfile(iter_models[i_model], u, l, pars[end, i_prof], 0.1, 0.1, 0.1, 50, progress_output = false)
+            push!(profiles, profile_nophot)
+            profile = TTauUtils.Profiles.addphotospherespec(profile_nophot, 0.1, phot_spec, progress_output = false, sinicorr = true)
+            push!(profiles, profile)
+            profiles
+        end
 
         for i_prof_iter = 1:iter_length
             i_prof = iter_range[i_prof_iter]
-            model_name, profile_name = split(names[i_prof], "/")
-            if !(model_name in iter_models)
-                push!(iter_models, model_name) # loadmodel in the future...
-                profiles_iter_model_indeces[i_prof_iter] = length(iter_models)
-            end
+            model_name, profile_name = String.(split(names[i_prof], "/"))
+            profile = iter_profiles[2*i_prof_iter - 1]
+            saveprofile(profile, profile_name*"_nophot")
+            profile = iter_profiles[2*i_prof_iter]
+            saveprofile(profile, profile_name)
+            v_mod, r_mod = getvandr(profile)
+            r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+            res = (r_obs_mod .- r_mod) .^ 2
+            good_v = @. (abs(v_mod) ≥ 30)
+            δs[i_prof] = sqrt(sum(res[good_v])/length(res[good_v]))
         end
-
-        print("$i_iter: ")
-        for i_prof_iter = 1:iter_length  # distributed in the future...
-            i_prof = iter_range[i_prof_iter]
-            i_model = profiles_iter_model_indeces[i_prof_iter]
-            print("($i_prof, $i_model, $(names[i_prof])) ")
-        end
-        println("")
+        println(δs[iter_range])
         # saving profiles...
     end
+    return δs
 end
 
-function newmodelalg(star, gridname, par_axes, split, line; threshold = 2)
+function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empty = 1.0, dims = (1,2))
     pars_min = par_axes[:,1]
     pars_max = par_axes[:,2]
     pars_Δ = pars_max .- pars_min
@@ -325,20 +423,89 @@ function newmodelalg(star, gridname, par_axes, split, line; threshold = 2)
     end
     n_splits = size(initial_grid)
     indeces_to_calculate = keys(initial_grid)
+    n_ind = length(indeces_to_calculate)
+    n_calc += n_ind
     names, pars = gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, line)
-    computemodels(names, pars, star)
+    δs = computemodels(names, pars, star, line)
+    for i_index = 1:n_ind
+        index = indeces_to_calculate[i_index]
+        initial_grid[index] = δs[i_index]
+    end
 
-    # return names, pars
-
-    # for index in keys(initial_grid)
-    #     index_arr = collect(Tuple(index))
-    #     pars = pars_min .+ pars_Δ .* (index_arr .- 1)
-    #     initial_grid[index] = model(pars...)
-    #     n_calc += 1
-    # end
     # return initial_grid
-    # min_δ = minimum(abs.(initial_grid))
-    # thres_δ = threshold*min_δ
+
+    min_δ = minimum(abs.(initial_grid))
+    thres_δ = threshold*min_δ
+    plots = []
+    split_n = 1
+    grid = initial_grid
+    push!(plots, plotgrid(grid, dims))
+    calculated = fill(true, size(grid))
+    while split_n ≤ splits
+        splitted_grid = splitgrid(grid, empty = empty)
+        new_calculated = fill(false, size(splitted_grid))
+        println(size(new_calculated))
+        # to_calculate = fill(false, size(splitted_grid))
+        indeces_to_calculate = CartesianIndex[]
+        for index in keys(grid)
+            δ_grid = grid[index]
+            splitted_index = splittedindex(index)
+            splitted_grid[splitted_index] = grid[index]
+            new_calculated[splitted_index] = calculated[index]
+            if δ_grid < thres_δ
+                # println(splitted_index)
+                # print(sum(calculated), " ")
+                found = findtocalculate!(splitted_index, neighbours, new_calculated)
+                # print(length(found), "(", length(neighbours), ") ")
+                # println(sum(calculated))
+                append!(indeces_to_calculate, found)
+            end
+        end
+        n_splits = size(splitted_grid)
+        calculated = new_calculated
+        push!(plots, plotgrid(splitted_grid, dims))
+        while (length(indeces_to_calculate) > 0)
+            n_ind = length(indeces_to_calculate)
+            n_calc += n_ind
+            names, pars = gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, line)
+            δs = computemodels(names, pars, star, line)
+            for i_index = 1:n_ind
+                index = indeces_to_calculate[i_index]
+                splitted_grid[index] = δs[i_index]
+                calculated[index] = true
+            end
+            min_δ = minimum(abs.(splitted_grid))
+            thres_δ = threshold*min_δ
+            calculated_indeces = deepcopy(indeces_to_calculate)
+            indeces_to_calculate = CartesianIndex[]
+            for index in calculated_indeces
+                if splitted_grid[index] < thres_δ
+                    # println(index)
+                    # print(sum(calculated), " ")
+                    found = findtocalculate!(index, neighbours, calculated)
+                    # print(length(found), "(", length(neighbours), ") ")
+                    # println(sum(calculated))
+                    append!(indeces_to_calculate, found)
+                end
+            end
+            println(thres_δ)
+            # println(length(indeces_to_calculate))
+            push!(plots, plotgrid(splitted_grid, dims))
+        end
+        split_n += 1
+        grid = splitted_grid
+        println(n_calc)
+        # return calculated_indeces
+    end
+    for grid_index in keys(grid)
+        if grid[grid_index] < 0
+           grid[grid_index] = -grid[grid_index] 
+        end
+    end
+    # println(n_calc)
+    return grid, plots
+
+    # return initial_grid
 end
 
 star = Star("RZPsc")
@@ -349,4 +516,10 @@ par_axes = Float64[-11 -8;    # lgṀ
                      1 4;     # W
                     30 60;    # i
                   ]
-newmodelalg(star, "grid", par_axes, 2, (3,2))
+grid, plots = newmodelalg(star, "grid", par_axes, 2, (3,2))
+anim = @animate for plt in plots
+    plot!(plt)
+end
+
+gif(anim, "anim_dist.gif", fps = 2)
+# plotgrid(grid, (1,2), clims = (0,1))

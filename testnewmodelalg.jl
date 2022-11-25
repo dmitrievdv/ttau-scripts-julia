@@ -12,7 +12,7 @@ using LinearAlgebra
 using Plots
 using Distributed
 
-n_procs = 4
+n_procs = 6
 addprocs(n_procs)
 # @everywhere using TTauUtils
 # using LsqFit
@@ -355,16 +355,18 @@ function computemodels(names, pars, star, line)
         iter_range = iter_start:iter_end
         iter_length = length(iter_range)
         iter_models = [] 
+        iter_models_names = String[]
         profiles_iter_model_indices = zeros(Int, iter_length)
 
         println("prof iter $i_iter from $n_iter ")
         for i_prof_iter = 1:iter_length
             i_prof = iter_range[i_prof_iter]
             model_name, profile_name = String.(split(names[i_prof], "/"))
-            if !(model_name in iter_models)
+            if !(model_name in iter_models_names)
                 push!(iter_models, loadmodel(star, model_name))
-                profiles_iter_model_indices[i_prof_iter] = length(iter_models)
+                push!(iter_models_names, model_name)
             end
+            profiles_iter_model_indices[i_prof_iter] = length(iter_models)
             print("($i_prof, $(length(iter_models)), $(names[i_prof])) ")
         end
         println("")
@@ -537,7 +539,7 @@ par_axes = Float64[-11 -8;    # lgṀ
                      1 4;     # W
                     30 60;    # i
                   ]
-grid, plots = newmodelalg(star, "grid", par_axes, 2, (3,2))
+grid, plots = newmodelalg(star, "grid", par_axes, 3, (3,2))
 anim = @animate for plt in plots
     plot!(plt)
 end

@@ -12,7 +12,7 @@ using LinearAlgebra
 using Plots
 using Distributed
 
-n_procs = 8
+n_procs = 4
 addprocs(n_procs)
 # @everywhere using TTauUtils
 # using LsqFit
@@ -48,15 +48,15 @@ end
 
 splittedindex(index) = 2*index - CartesianIndex(fill(1, length(index))...)
 
-function findindecestocalculate(neighbours, good_indeces, calculated_indeces, n_split, n_pars)
-    indeces_to_calculate = CartesianIndex[]
-    for good_index in good_indeces
+function findindicestocalculate(neighbours, good_indices, calculated_indices, n_split, n_pars)
+    indices_to_calculate = CartesianIndex[]
+    for good_index in good_indices
         for neighbour in neighbours
             index = good_index + neighbour
-            if index in calculated_indeces 
+            if index in calculated_indices 
                 continue
             end
-            if index in indeces_to_calculate
+            if index in indices_to_calculate
                 continue
             end
             outside_grid = false
@@ -69,16 +69,16 @@ function findindecestocalculate(neighbours, good_indeces, calculated_indeces, n_
             if outside_grid
                 continue
             end
-            push!(indeces_to_calculate, index)
+            push!(indices_to_calculate, index)
         end
     end
-    return indeces_to_calculate
+    return indices_to_calculate
 end
 
 function findtocalculate!(good_index, neighbours, calculated)
     n_splits = size(calculated)
     n_pars = length(n_splits)
-    indeces_to_calculate = CartesianIndex[]
+    indices_to_calculate = CartesianIndex[]
     for neighbour in neighbours
         index = good_index + neighbour
         outside_grid = false
@@ -93,10 +93,10 @@ function findtocalculate!(good_index, neighbours, calculated)
         end
         if !calculated[index]
             calculated[index] = true
-            push!(indeces_to_calculate, index)
+            push!(indices_to_calculate, index)
         end
     end
-    return indeces_to_calculate
+    return indices_to_calculate
 end
 
 function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empty = 1.0)
@@ -137,7 +137,7 @@ function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empt
         splitted_grid = splitgrid(grid, empty = empty)
         calculated = fill(false, size(splitted_grid))
         # to_calculate = fill(false, size(splitted_grid))
-        indeces_to_calculate = CartesianIndex[]
+        indices_to_calculate = CartesianIndex[]
         for index in keys(grid)
             δ_grid = grid[index]
             splitted_index = splittedindex(index)
@@ -147,12 +147,12 @@ function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empt
                 # println(splitted_index)
                 # print(sum(calculated), " ")
                 found = findtocalculate!(splitted_index, neighbours, calculated)
-                append!(indeces_to_calculate, found)
+                append!(indices_to_calculate, found)
             end
         end
         push!(plots, plotgrid(splitted_grid, dims))
-        while (length(indeces_to_calculate) > 0)
-            for index in indeces_to_calculate
+        while (length(indices_to_calculate) > 0)
+            for index in indices_to_calculate
                 index_arr = collect(Tuple(index))
                 pars = pars_min .+ pars_Δ .* (index_arr .- 1) ./ 2^split_n
                 splitted_grid[index] = model(pars...)
@@ -161,27 +161,27 @@ function newmodelalgint(model, axes, splits; threshold = 1.5, dims = (1,2), empt
             end
             min_δ = minimum(abs.(splitted_grid))
             thres_δ = threshold*min_δ
-            calculated_indeces = deepcopy(indeces_to_calculate)
-            indeces_to_calculate = CartesianIndex[]
-            for index in calculated_indeces
+            calculated_indices = deepcopy(indices_to_calculate)
+            indices_to_calculate = CartesianIndex[]
+            for index in calculated_indices
                 if splitted_grid[index] < thres_δ
                     # println(index)
                     # print(sum(calculated), " ")
                     found = findtocalculate!(index, neighbours, calculated)
                     # print(length(found), "(", length(neighbours), ") ")
                     # println(sum(calculated))
-                    append!(indeces_to_calculate, found)
+                    append!(indices_to_calculate, found)
                 end
             end
             # println(thres_δ)
-            # println(length(indeces_to_calculate))
+            # println(length(indices_to_calculate))
             push!(plots, plotgrid(splitted_grid, dims))
         end
         split_n += 1
         grid = splitted_grid
         print(n_calc, " ")
         println(sum(calculated))
-        # return calculated_indeces
+        # return calculated_indices
     end
     for grid_index in keys(grid)
         if grid[grid_index] < 0
@@ -217,17 +217,17 @@ function linename(u, l)
     line_name *= 'a' + u-1-l
 end
 
-function gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, line)
+function gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
     pars_min = par_axes[:,1]
     pars_max = par_axes[:,2]
     pars_Δ = pars_max .- pars_min
     n_pars = length(pars_min)
-    n_ind = length(indeces_to_calculate)
+    n_ind = length(indices_to_calculate)
     pars = zeros(n_pars, n_ind)
     names = String[]
     rational_index = zeros(Rational{Int}, n_pars)
     for i_ind in 1:n_ind
-        index = indeces_to_calculate[i_ind]
+        index = indices_to_calculate[i_ind]
         model_name = gridname
         for i_par = 1:n_pars-1
             rational_index[i_par] = (index[i_par] - 1)//(n_splits[i_par] - 1)
@@ -355,24 +355,24 @@ function computemodels(names, pars, star, line)
         iter_range = iter_start:iter_end
         iter_length = length(iter_range)
         iter_models = [] 
-        profiles_iter_model_indeces = zeros(Int, iter_length)
+        profiles_iter_model_indices = zeros(Int, iter_length)
 
-        println("prof iter $i_iter from $n_iter")
+        println("prof iter $i_iter from $n_iter ")
         for i_prof_iter = 1:iter_length
             i_prof = iter_range[i_prof_iter]
             model_name, profile_name = String.(split(names[i_prof], "/"))
             if !(model_name in iter_models)
                 push!(iter_models, loadmodel(star, model_name))
-                profiles_iter_model_indeces[i_prof_iter] = length(iter_models)
+                profiles_iter_model_indices[i_prof_iter] = length(iter_models)
             end
-            # print("($i_prof, $(length(iter_models)), $(names[i_prof])) ")
+            print("($i_prof, $(length(iter_models)), $(names[i_prof])) ")
         end
         println("")
         
         iter_profiles = @distributed vcat for i_prof_iter = 1:iter_length
             profiles = []
             i_prof = iter_range[i_prof_iter]
-            i_model = profiles_iter_model_indeces[i_prof_iter]
+            i_model = profiles_iter_model_indices[i_prof_iter]
             model_name, profile_name = String.(split(names[i_prof], "/"))
             profile_nophot = HydrogenProfile(iter_models[i_model], u, l, pars[end, i_prof], 0.1, 0.1, 0.1, 50, progress_output = false)
             push!(profiles, profile_nophot)
@@ -400,6 +400,27 @@ function computemodels(names, pars, star, line)
     return δs
 end
 
+function reversekeys(array :: AbstractArray)
+    array_shape = size(array)
+    n_dims = length(array_shape)
+    n_keys = length(array)
+    indices = fill(CartesianIndex(zeros(Int, n_dims)...), n_keys)
+    index_arr = zeros(Int, n_dims)
+    for i = 0:n_keys-1
+        dim = 1
+        div = 1
+        num = i
+        while dim ≤ n_dims
+            div = foldl(*, array_shape[dim+1:n_dims], init = 1)
+            index_arr[dim] = num ÷ div + 1
+            num -= (num ÷ div) *div
+            dim += 1
+        end
+        indices[i+1] = CartesianIndex(index_arr...)
+    end
+    return indices
+end
+
 function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empty = 1.0, dims = (1,2))
     pars_min = par_axes[:,1]
     pars_max = par_axes[:,2]
@@ -410,7 +431,7 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
 
     neighbours = CartesianIndex[]
     index_arr = zeros(Int, n_pars)
-    for i = 1:n_pars
+    for i = n_pars:-1:1
         index_arr[i] = 1
         index = CartesianIndex(index_arr...)
         push!(neighbours, index)
@@ -418,17 +439,17 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
         index_arr[i] = 0
     end
     for dir = 0:2^n_pars-1
-        index_arr = digits(dir, base = 2, pad = n_pars)*2 .- 1
+        index_arr = reverse(digits(dir, base = 2, pad = n_pars)*2 .- 1)
         push!(neighbours, CartesianIndex(index_arr...))
     end
     n_splits = size(initial_grid)
-    indeces_to_calculate = keys(initial_grid)
-    n_ind = length(indeces_to_calculate)
+    indices_to_calculate = reversekeys(initial_grid)
+    n_ind = length(indices_to_calculate)
     n_calc += n_ind
-    names, pars = gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, line)
+    names, pars = gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
     δs = computemodels(names, pars, star, line)
     for i_index = 1:n_ind
-        index = indeces_to_calculate[i_index]
+        index = indices_to_calculate[i_index]
         initial_grid[index] = δs[i_index]
     end
 
@@ -446,8 +467,8 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
         new_calculated = fill(false, size(splitted_grid))
         println(size(new_calculated))
         # to_calculate = fill(false, size(splitted_grid))
-        indeces_to_calculate = CartesianIndex[]
-        for index in keys(grid)
+        indices_to_calculate = CartesianIndex[]
+        for index in reversekeys(grid)
             δ_grid = grid[index]
             splitted_index = splittedindex(index)
             splitted_grid[splitted_index] = grid[index]
@@ -458,44 +479,44 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
                 found = findtocalculate!(splitted_index, neighbours, new_calculated)
                 # print(length(found), "(", length(neighbours), ") ")
                 # println(sum(calculated))
-                append!(indeces_to_calculate, found)
+                append!(indices_to_calculate, found)
             end
         end
         n_splits = size(splitted_grid)
         calculated = new_calculated
         push!(plots, plotgrid(splitted_grid, dims))
-        while (length(indeces_to_calculate) > 0)
-            n_ind = length(indeces_to_calculate)
+        while (length(indices_to_calculate) > 0)
+            n_ind = length(indices_to_calculate)
             n_calc += n_ind
-            names, pars = gennamesandpars(indeces_to_calculate, n_splits, gridname, par_axes, line)
+            names, pars = gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
             δs = computemodels(names, pars, star, line)
             for i_index = 1:n_ind
-                index = indeces_to_calculate[i_index]
+                index = indices_to_calculate[i_index]
                 splitted_grid[index] = δs[i_index]
                 calculated[index] = true
             end
             min_δ = minimum(abs.(splitted_grid))
             thres_δ = threshold*min_δ
-            calculated_indeces = deepcopy(indeces_to_calculate)
-            indeces_to_calculate = CartesianIndex[]
-            for index in calculated_indeces
+            calculated_indices = deepcopy(indices_to_calculate)
+            indices_to_calculate = CartesianIndex[]
+            for index in calculated_indices
                 if splitted_grid[index] < thres_δ
                     # println(index)
                     # print(sum(calculated), " ")
                     found = findtocalculate!(index, neighbours, calculated)
                     # print(length(found), "(", length(neighbours), ") ")
                     # println(sum(calculated))
-                    append!(indeces_to_calculate, found)
+                    append!(indices_to_calculate, found)
                 end
             end
             println(thres_δ)
-            # println(length(indeces_to_calculate))
+            # println(length(indices_to_calculate))
             push!(plots, plotgrid(splitted_grid, dims))
         end
         split_n += 1
         grid = splitted_grid
         println(n_calc)
-        # return calculated_indeces
+        # return calculated_indices
     end
     for grid_index in keys(grid)
         if grid[grid_index] < 0

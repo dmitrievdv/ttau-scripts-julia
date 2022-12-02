@@ -291,7 +291,7 @@ end
     return v_prof, r_prof
 end
 
-function computemodels(names, pars, star, line)
+function computemodels(names, pars, star, obs_file, line; photosphere_spec = "", spec_dir = "spec", nonstat = false, nonloc = false)
     model_names = String[]
     n_pars, n_profs = size(pars)
     δs = zeros(n_profs)
@@ -314,8 +314,13 @@ function computemodels(names, pars, star, line)
     flux_const = -0.012
 
     u,l = line
-    phot_spec = TTauUtils.Profiles.readpolluxspecfile("spec/RZ_Psc_Ha_syn_unwid_corr.dat", u, l)
-    v_obs, r_obs = readobservation("spec/RZPsc_16-11-2013_proc.dat", flux_const = flux_const)
+    use_phot_spec = photosphere_spec == ""
+    phot_spec = if use_phot_spec
+        TTauUtils.Profiles.readpolluxspecfile(spec_dir*"/"*photosphere_spec, u, l)
+    else
+        TTauUtils.Profiles.PhotosphereSpectrum(Float64[], Float64[], Float64[]) # empty spectrum
+    end
+    v_obs, r_obs = readobservation(spec_dir*"/"*obs_file, flux_const = flux_const)
 
     n_models = length(model_names)
     println(n_models)
@@ -333,7 +338,9 @@ function computemodels(names, pars, star, line)
         iter_models = @distributed vcat for i_model = iter_start:iter_end
             lgṀ, T_max, R_in, W = model_pars[:,i_model]
             model_name = model_names[i_model]
-            model = TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+            model = if nonloc
+                local_model = TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+            end 
             [model]
         end
         
@@ -378,17 +385,27 @@ function computemodels(names, pars, star, line)
             model_name, profile_name = String.(split(names[i_prof], "/"))
             profile_nophot = HydrogenProfile(iter_models[i_model], u, l, pars[end, i_prof], 0.1, 0.1, 0.1, 50, progress_output = false)
             push!(profiles, profile_nophot)
-            profile = TTauUtils.Profiles.addphotospherespec(profile_nophot, 0.1, phot_spec, progress_output = false, sinicorr = true)
-            push!(profiles, profile)
+            if use_phot_spec
+                profile = TTauUtils.Profiles.addphotospherespec(profile_nophot, 0.1, phot_spec, progress_output = false, sinicorr = true)
+                push!(profiles, profile)
+            end
             profiles
         end
 
         for i_prof_iter = 1:iter_length
             i_prof = iter_range[i_prof_iter]
             model_name, profile_name = String.(split(names[i_prof], "/"))
-            profile = iter_profiles[2*i_prof_iter - 1]
-            saveprofile(profile, profile_name*"_nophot")
-            profile = iter_profiles[2*i_prof_iter]
+            i_nophot = if use_phot_spec
+                2*i_prof_iter - 1
+            else
+                i_prof_iter
+            end
+            profile = if use_phot_spec
+                saveprofile(iter_profiles[i_nophot], profile_name*"_nophot")
+                iter_profiles[i_nophot + 1]
+            else
+                profile
+            end
             saveprofile(profile, profile_name)
             v_mod, r_mod = getvandr(profile)
             r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
@@ -449,7 +466,7 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
     n_ind = length(indices_to_calculate)
     n_calc += n_ind
     names, pars = gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
-    δs = computemodels(names, pars, star, line)
+    δs = computemodels(names, pars, star, "RZPsc_16-11-2013_proc.dat", line, photosphere_spec = "RZ_Psc_Ha_syn_unwid_corr.dat", nonstat = false, nonloc = false)
     for i_index = 1:n_ind
         index = indices_to_calculate[i_index]
         initial_grid[index] = δs[i_index]
@@ -539,7 +556,7 @@ par_axes = Float64[-11 -8;    # lgṀ
                      1 4;     # W
                     30 60;    # i
                   ]
-grid, plots = newmodelalg(star, "grid", par_axes, 3, (3,2))
+grid, plots = newmodelalg(star, obsfile, "grid", par_axes, 3, (3,2), photometry = "")
 anim = @animate for plt in plots
     plot!(plt)
 end

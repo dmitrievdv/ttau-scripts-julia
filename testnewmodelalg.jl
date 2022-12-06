@@ -291,7 +291,8 @@ end
     return v_prof, r_prof
 end
 
-function computemodels(names, pars, star, obs_file, line; photosphere_spec = "", spec_dir = "spec", nonstat = false, nonloc = false)
+function computemodels(names, pars, star, obs_file, line; photosphere_spec = "", spec_dir = "spec", nonstat = false, nonloc = false,
+                                                          rewrite_models = false, rewrite_profiles = false)
     model_names = String[]
     n_pars, n_profs = size(pars)
     δs = zeros(n_profs)
@@ -301,7 +302,7 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
     for i_prof = 1:n_profs
         model_name, profile_name = String.(split(names[i_prof], "/"))
         model_exist = isfile("stars/$(star.name)/$model_name/$model_name.dat")
-        if !(model_name in model_names) & !(model_exist)
+        if (rewrite_models) | (!(model_name in model_names) & !(model_exist))
             push!(model_names, model_name)
             if isempty(model_pars)
                 model_pars = pars[1:4, i_prof]
@@ -338,16 +339,30 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
         iter_models = @distributed vcat for i_model = iter_start:iter_end
             lgṀ, T_max, R_in, W = model_pars[:,i_model]
             model_name = model_names[i_model]
-            model = if nonloc
-                local_model = TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
-            end 
-            [model]
+            if !nonloc
+                model = if !nonstat
+                    TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+                else
+                    TTauUtils.NonStationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+                end
+                [model]
+            else
+                local_model = if !nonstat
+                    TTauUtils.StationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+                else
+                    TTauUtils.NonStationarySolidMagnetosphereNHCool(model_name, star, R_in, R_in + W, 10^lgṀ, T_max, 10, progress_output = false)
+                end
+                model = addnonlocal(local_model, memory_opt = false, progress_output = false, saveas = model_name)
+                [local_model, model]
+            end
         end
         
         for model in iter_models
             savemodel(model)
         end
     end
+
+
     
     n_iter = if n_profs % n_procs == 0
         n_profs ÷ n_procs

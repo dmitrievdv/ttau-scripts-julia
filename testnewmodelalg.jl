@@ -292,7 +292,7 @@ end
 end
 
 function computemodels(names, pars, star, obs_file, line; photosphere_spec = "", spec_dir = "spec", nonstat = false, nonloc = false,
-                                                          rewrite_models = false, rewrite_profiles = false)
+                                                          rewrite_models = false, rewrite_profiles = false, central_v_threshold = 30)
     model_names = String[]
     n_pars, n_profs = size(pars)
     δs = zeros(n_profs)
@@ -315,7 +315,7 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
     flux_const = -0.012
 
     u,l = line
-    use_phot_spec = photosphere_spec == ""
+    use_phot_spec = (photosphere_spec == "")
     phot_spec = if use_phot_spec
         TTauUtils.Profiles.readpolluxspecfile(spec_dir*"/"*photosphere_spec, u, l)
     else
@@ -362,18 +362,42 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
         end
     end
 
-
-    
-    n_iter = if n_profs % n_procs == 0
-        n_profs ÷ n_procs
+    non_calculated_profiles_indices = Int[]
+    if rewrite_profiles | rewrite_models
+        non_calculated_profiles_indices = [1:n_profs;]
     else
-        n_profs ÷ n_procs + 1
+        for i_prof = 1:n_profs
+            profile_model_path = names[i_prof]
+            model_name, profile_name = split(profile_model_path, "/")
+            println(profile_model_path)
+            println(isfile("stars/$(star.name)/$profile_model_path.dat"))
+            if isfile("stars/$(star.name)/$profile_model_path.dat")
+                model = loadmodel(star, model_name)
+                profile = HydrogenProfile(star, model, profile_name)
+                v_mod, r_mod = getvandr(profile)
+                r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
+                res = (r_obs_mod .- r_mod) .^ 2
+                good_v = @. (abs(v_mod) ≥ central_v_threshold)
+                δs[i_prof] = sqrt(sum(res[good_v])/length(res[good_v]))
+            else
+                push!(non_calculated_profiles_indices, i_prof)
+            end
+        end
+    end
+
+    println(non_calculated_profiles_indices)
+    
+    n_to_calculate = length(non_calculated_profiles_indices)
+    n_iter = if n_to_calculate % n_procs == 0
+        n_to_calculate ÷ n_procs
+    else
+        n_to_calculate ÷ n_procs + 1
     end
 
     for i_iter = 1:n_iter
         iter_start = (i_iter-1)*n_procs + 1
-        iter_end_outside = (i_iter*n_procs > n_profs)
-        iter_end = iter_end_outside*n_profs + !iter_end_outside*i_iter*n_procs
+        iter_end_outside = (i_iter*n_procs > n_to_calculate)
+        iter_end = iter_end_outside*n_to_calculate + !iter_end_outside*i_iter*n_procs
         iter_range = iter_start:iter_end
         iter_length = length(iter_range)
         iter_models = [] 
@@ -382,7 +406,7 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
 
         println("prof iter $i_iter from $n_iter ")
         for i_prof_iter = 1:iter_length
-            i_prof = iter_range[i_prof_iter]
+            i_prof = non_calculated_profiles_indices[iter_range[i_prof_iter]]
             model_name, profile_name = String.(split(names[i_prof], "/"))
             if !(model_name in iter_models_names)
                 push!(iter_models, loadmodel(star, model_name))
@@ -395,7 +419,7 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
         
         iter_profiles = @distributed vcat for i_prof_iter = 1:iter_length
             profiles = []
-            i_prof = iter_range[i_prof_iter]
+            i_prof = non_calculated_profiles_indices[iter_range[i_prof_iter]]
             i_model = profiles_iter_model_indices[i_prof_iter]
             model_name, profile_name = String.(split(names[i_prof], "/"))
             profile_nophot = HydrogenProfile(iter_models[i_model], u, l, pars[end, i_prof], 0.1, 0.1, 0.1, 50, progress_output = false)
@@ -408,7 +432,7 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
         end
 
         for i_prof_iter = 1:iter_length
-            i_prof = iter_range[i_prof_iter]
+            i_prof = non_calculated_profiles_indices[iter_range[i_prof_iter]]
             model_name, profile_name = String.(split(names[i_prof], "/"))
             i_nophot = if use_phot_spec
                 2*i_prof_iter - 1
@@ -419,13 +443,13 @@ function computemodels(names, pars, star, obs_file, line; photosphere_spec = "",
                 saveprofile(iter_profiles[i_nophot], profile_name*"_nophot")
                 iter_profiles[i_nophot + 1]
             else
-                profile
+                iter_profiles[i_nophot]
             end
             saveprofile(profile, profile_name)
             v_mod, r_mod = getvandr(profile)
             r_obs_mod = velocitiesobstomod(v_mod, r_mod, v_obs, r_obs)
             res = (r_obs_mod .- r_mod) .^ 2
-            good_v = @. (abs(v_mod) ≥ 30)
+            good_v = @. (abs(v_mod) ≥ central_v_threshold)
             δs[i_prof] = sqrt(sum(res[good_v])/length(res[good_v]))
         end
         println(δs[iter_range])
@@ -455,7 +479,7 @@ function reversekeys(array :: AbstractArray)
     return indices
 end
 
-function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empty = 1.0, dims = (1,2))
+function newmodelalg(star, obs_file, gridname, par_axes, splits, line; threshold = 2, empty = 1.0, dims = (1,2), kwargs...)
     pars_min = par_axes[:,1]
     pars_max = par_axes[:,2]
     pars_Δ = pars_max .- pars_min
@@ -481,7 +505,7 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
     n_ind = length(indices_to_calculate)
     n_calc += n_ind
     names, pars = gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
-    δs = computemodels(names, pars, star, "RZPsc_16-11-2013_proc.dat", line, photosphere_spec = "RZ_Psc_Ha_syn_unwid_corr.dat", nonstat = false, nonloc = false)
+    δs = computemodels(names, pars, star, obs_file, line; kwargs...)
     for i_index = 1:n_ind
         index = indices_to_calculate[i_index]
         initial_grid[index] = δs[i_index]
@@ -523,7 +547,7 @@ function newmodelalg(star, gridname, par_axes, splits, line; threshold = 2, empt
             n_ind = length(indices_to_calculate)
             n_calc += n_ind
             names, pars = gennamesandpars(indices_to_calculate, n_splits, gridname, par_axes, line)
-            δs = computemodels(names, pars, star, line)
+            δs = computemodels(names, pars, star, obs_file, line; kwargs...)
             for i_index = 1:n_ind
                 index = indices_to_calculate[i_index]
                 splitted_grid[index] = δs[i_index]
@@ -571,7 +595,8 @@ par_axes = Float64[-11 -8;    # lgṀ
                      1 4;     # W
                     30 60;    # i
                   ]
-grid, plots = newmodelalg(star, obsfile, "grid", par_axes, 3, (3,2), photometry = "")
+grid, plots = newmodelalg(star, "RZPsc_16-11-2013_proc.dat", "grid", par_axes, 3, (3,2), photosphere_spec = "RZ_Psc_Ha_syn_unwid_corr.dat", 
+                                                        nonstat = false, nonloc = false, rewrite_models = false, rewrite_profiles = false)
 anim = @animate for plt in plots
     plot!(plt)
 end

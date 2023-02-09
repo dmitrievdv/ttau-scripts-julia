@@ -7,7 +7,18 @@ TTauUtils.Stars.savestar(star)
 star = TTauUtils.Star("RYLupi")
 
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
-star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, 1e-7, 4, 5)
+# star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, 1e-7, 4, 5)
+R_in = 4.0
+W = 1.0
+θ_1 = asin(√(1/(R_in + W)))
+θ_2 = asin(√(1/(R_in)))
+
+
+star = TTauUtils.Stars.MagnetosphereSpotStar(star, 10000, θ_1, θ_2)
+
+angs = [60:5:90;]
+spot_position = 
+
 orientation = TTauUtils.GeometryAndOrientations.Orientation(75)
 
 # screens = TTauUtils.Eclipses.GaussianScreen.(10, [0.1, 0.5,1.0,4,10])

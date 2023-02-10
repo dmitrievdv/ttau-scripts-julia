@@ -1,5 +1,4 @@
 using TTauUtils
-
 using Plots
 
 star = TTauUtils.Star("RYLupi", 2, 1.5, 5300, 12)
@@ -7,24 +6,30 @@ TTauUtils.Stars.savestar(star)
 star = TTauUtils.Star("RYLupi")
 
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
-# star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, 1e-7, 4, 5)
 R_in = 4.0
 W = 1.0
-θ_1 = asin(√(1/(R_in + W)))
-θ_2 = asin(√(1/(R_in)))
+Ṁ = 1e-7
+star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, Ṁ, R_in, R_in + W)
+spot_angle_rad = asin(1/√(R_in + W/2))
 
-
-star = TTauUtils.Stars.MagnetosphereSpotStar(star, 10000, θ_1, θ_2)
-
-angs = [60:5:90;]
-spot_position = 
-
-orientation = TTauUtils.GeometryAndOrientations.Orientation(75)
+incl_angle = 75
+orientation = TTauUtils.GeometryAndOrientations.Orientation(incl_angle)
+incl_angle_rad = 75/180*π
 
 # screens = TTauUtils.Eclipses.GaussianScreen.(10, [0.1, 0.5,1.0,4,10])
 screen_no_anomalies = TTauUtils.Eclipses.GaussianScreen(10, 1)
 screen = screen_no_anomalies
+spot_y = sin(incl_angle_rad - spot_angle_rad)
 
+x_speed_rel_toy_speed = 20
+
+anomaly_screen_position = 1.0
+anomaly_τ = 0.0
+
+anomaly_x_size = 0.1
+anomaly_obliq = 2
+anomaly_y_size = anomaly_x_size/anomaly_obliq 
+anomaly_smoothness = 0.1
 # n_anomalies = 3
 
 # for i = 1:n_anomalies
@@ -41,17 +46,19 @@ screen = screen_no_anomalies
 # end
 
 begin
-anomaly_dark = TTauUtils.Eclipses.ScreenAnomaly(6, 1.4, 0.3, 0.1, 10)
-anomaly_hole = TTauUtils.Eclipses.ScreenAnomaly(0, 0.7, 0.2, 0.07, 0)
-screen = TTauUtils.Eclipses.addanomaly(screen_no_anomalies, anomaly_dark)
-screen = TTauUtils.Eclipses.addanomaly(screen, anomaly_hole)
+anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(anomaly_screen_position*x_speed_rel_toy_speed,
+                                                            anomaly_screen_position + spot_y, 
+                                                            anomaly_x_size, anomaly_y_size, 
+                                                            anomaly_τ, anomaly_smoothness)
+                           
+screen = TTauUtils.Eclipses.addanomaly(screen_no_anomalies, anomaly)
 # anomaly = TTauUtils.Eclipses.ScreenAnomaly(0, 2, 0.15, 0.05, 10)
 # screen = TTauUtils.Eclipses.addanomaly(screen, anomaly)
 
 
 
 yscreen = [-20:0.5:-5;-5:0.25:-3;-3:0.01:0;0:0.1:1]
-xscreen = 10*yscreen
+xscreen = x_speed_rel_toy_speed*yscreen
 eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, xscreen, h = 0.01, scatter_filter = TTauUtils.Eclipses.flat_scatter_filter, filters = "BV", scatter = 0.06)
 
 function createanim(eclipse_photometry, yscreen, xscreen)

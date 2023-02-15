@@ -140,9 +140,11 @@ mag_name = "4_1_7_75"
 used_filters = "BV"
 scatter_intencity = 0.06
 scatter_filter = TTauUtils.Eclipses.flat_scatter_filter
-dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
+RY_Lupi_dispersion = Dict('U' => 1.6, 'B' => 1.3, 'V' => 1.0, 'R' => 0.85, 'I' => 0.7)
+# dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
+dispersion_filter = RY_Lupi_dispersion
 
-screen_h = 1
+screen_h = 0.5
 screen_τ = 10
 
 screen_pars = Dict(
@@ -165,12 +167,12 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 plot(screeen_eclipse_photometry['B'] .- screeen_eclipse_photometry['V'], screeen_eclipse_photometry['V'], yflip = true, legend = false)
 
-x_speed_rel_to_y_speed = 20
-anomaly_screen_position = 2.0
+x_speed_rel_to_y_speed = 0.1
+anomaly_screen_position = 1.8*screen_h
 anomaly_τ = 9.0
-anomaly_x_size = 0.1
-anomaly_obliq = 2
-anomaly_smoothness = 0.1
+anomaly_x_size = 0.3
+anomaly_obliq = 3
+anomaly_smoothness = 0.2
 
 anomaly_pars = Dict(
     "x_speed_rel_to_y_speed" => x_speed_rel_to_y_speed,
@@ -185,17 +187,34 @@ anomaly_name = "test_cloud"
 
 anomaly_y_size = anomaly_x_size/anomaly_obliq 
 
-screen_x_start = -1 - anomaly_x_size*(1+anomaly_smoothness)
-screen_x_end = -screen_x_start
-
-screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
-screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
-
 anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
-                                                             anomaly_x_size, anomaly_y_size, 
-                                                             anomaly_τ, anomaly_smoothness)
+                                                                anomaly_x_size, anomaly_y_size, 
+                                                                anomaly_τ, anomaly_smoothness)
 
-n_phot = 20
+anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, 0.05, anomaly_τ, 0.5)                                                                
+
+screen_x_start = 0.0
+screen_x_end = 0.0
+
+screen_y_start = 0.0
+screen_y_end = 0.0
+
+if x_speed_rel_to_y_speed > 1
+    screen_x_start = -1 - anomaly_x_size*(1+anomaly_smoothness)
+    screen_x_end = -screen_x_start
+
+    screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
+    screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
+else
+    screen_y_start = -1 - anomaly_y_size*(1+anomaly_smoothness) - anomaly_screen_position
+    screen_y_end = -screen_y_start - 2*anomaly_screen_position
+
+    screen_x_start = (screen_y_start + spot_y)*x_speed_rel_to_y_speed
+    screen_x_end = (screen_y_end + spot_y)*x_speed_rel_to_y_speed
+end
+
+
+n_phot = 100
 xscreen = collect(range(screen_x_start, screen_x_end, n_phot))
 yscreen = collect(range(screen_y_start, screen_y_end, n_phot))
 

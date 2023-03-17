@@ -167,16 +167,26 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 plot(screeen_eclipse_photometry['B'] .- screeen_eclipse_photometry['V'], screeen_eclipse_photometry['V'], yflip = true, legend = false)
 
-x_speed_rel_to_y_speed = 0.1
-anomaly_screen_position = 1.8*screen_h
-anomaly_τ = 9.0
-anomaly_x_size = 0.3
-anomaly_obliq = 3
-anomaly_smoothness = 0.2
+anomaly_x_vel = 0.0
+anomaly_y_vel = 0.0
+anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
+anomaly_x_dir, anomaly_y_dir = if anomaly_speed > 0.0
+    anomaly_x_vel/anomaly_speed, anomaly_y_vel/anomaly_speed
+else
+    0.0, 0.0
+end
+
+screen_event_position = 0.7
+anomaly_screen_position = screen_event_position + spot_y
+anomaly_τ = 0.0
+anomaly_x_size = 0.1
+anomaly_obliq = 2
+anomaly_smoothness = 0.1
 
 anomaly_pars = Dict(
-    "x_speed_rel_to_y_speed" => x_speed_rel_to_y_speed,
-    "anomaly_screen_position" => anomaly_screen_position,
+    "anomaly_x_vel" => anomaly_x_vel,
+    "anomaly_y_vel" => anomaly_y_vel,
+    "screen_event_position" => screen_event_position,
     "anomaly_τ" => anomaly_τ,
     "anomaly_x_size" => anomaly_x_size,
     "anomaly_obliq" => anomaly_obliq,
@@ -187,40 +197,30 @@ anomaly_name = "test_cloud"
 
 anomaly_y_size = anomaly_x_size/anomaly_obliq 
 
-anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
-                                                                anomaly_x_size, anomaly_y_size, 
-                                                                anomaly_τ, anomaly_smoothness)
+anomaly_dir_width = √((anomaly_x_size*anomaly_x_dir)^2 + (anomaly_y_size*anomaly_y_dir)^2)
 
-anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, 0.05, anomaly_τ, 0.5)                                                                
+screen_y_start = (-1 - anomaly_dir_width*(1 + 2*anomaly_smoothness))/(1+anomaly_speed) - screen_event_position
+screen_y_end = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))/(1+anomaly_speed) - screen_event_position
 
-screen_x_start = 0.0
-screen_x_end = 0.0
+# screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
+# screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
 
-screen_y_start = 0.0
-screen_y_end = 0.0
+# anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
+#                                                              anomaly_x_size, anomaly_y_size, 
+#                                                              anomaly_τ, anomaly_smoothness)
 
-if x_speed_rel_to_y_speed > 1
-    screen_x_start = -1 - anomaly_x_size*(1+anomaly_smoothness)
-    screen_x_end = -screen_x_start
+anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, anomaly_y_size, anomaly_τ, anomaly_smoothness)
 
-    screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
-    screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
-else
-    screen_y_start = -1 - anomaly_y_size*(1+anomaly_smoothness) - anomaly_screen_position
-    screen_y_end = -screen_y_start - 2*anomaly_screen_position
-
-    screen_x_start = (screen_y_start + spot_y)*x_speed_rel_to_y_speed
-    screen_x_end = (screen_y_end + spot_y)*x_speed_rel_to_y_speed
-end
-
+anomaly_movement = TTauUtils.Eclipses.AnomalyMovement(anomaly_speed, anomaly_x_dir, anomaly_y_dir, -screen_event_position)
 
 n_phot = 100
-xscreen = collect(range(screen_x_start, screen_x_end, n_phot))
+# xscreen = collect(range(screen_x_start, screen_x_end, n_phot))
 yscreen = collect(range(screen_y_start, screen_y_end, n_phot))
+xscreen = zeros(length(yscreen))
 
-screen = TTauUtils.Eclipses.addanomaly(screen_no_anomalies, anomaly)
+screen = TTauUtils.Eclipses.addanomaly(screen_no_anomalies, anomaly, anomaly_movement)
 
-eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, xscreen, h = 0.01, 
+eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, h = 0.01, 
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
 
@@ -283,7 +283,7 @@ function createanim(eclipse_photometry, yscreen, xscreen; dir = "eclipses")
         plot(plt_color, screen_map, phot_map, layout = @layout([A B C]), size = (1500, 500))
     end
 
-    gif(anim, "eclipse.gif", fps = 5)
+    gif(anim, "eclipse.gif", fps = 20)
 end
 #     # TTauUtils.Eclipses.manyscreens(star, orientation, screens, ys, outfile = "V695Per_scat.eclipse",filters = "RI", scatter = 0.1, scatter_filter = TTauUtils.Eclipses.vosh_scatter_filter)
 

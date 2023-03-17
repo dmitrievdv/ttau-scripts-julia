@@ -140,11 +140,9 @@ mag_name = "4_1_7_75"
 used_filters = "BV"
 scatter_intencity = 0.06
 scatter_filter = TTauUtils.Eclipses.flat_scatter_filter
-RY_Lupi_dispersion = Dict('U' => 1.6, 'B' => 1.3, 'V' => 1.0, 'R' => 0.85, 'I' => 0.7)
-# dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
-dispersion_filter = RY_Lupi_dispersion
+dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
 
-screen_h = 0.5
+screen_h = 1
 screen_τ = 10
 
 screen_pars = Dict(
@@ -167,7 +165,7 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 plot(screeen_eclipse_photometry['B'] .- screeen_eclipse_photometry['V'], screeen_eclipse_photometry['V'], yflip = true, legend = false)
 
-anomaly_x_vel = 0.0
+anomaly_x_vel = 10.0
 anomaly_y_vel = 0.0
 anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
 anomaly_x_dir, anomaly_y_dir = if anomaly_speed > 0.0
@@ -176,11 +174,11 @@ else
     0.0, 0.0
 end
 
-screen_event_position = 0.7
+screen_event_position = 0.3
 anomaly_screen_position = screen_event_position + spot_y
 anomaly_τ = 0.0
-anomaly_x_size = 0.1
-anomaly_obliq = 2
+anomaly_x_size = 0.3
+anomaly_obliq = 5
 anomaly_smoothness = 0.1
 
 anomaly_pars = Dict(
@@ -205,11 +203,12 @@ screen_y_end = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))/(1+anomaly_spe
 # screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
 # screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
 
-# anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
-#                                                              anomaly_x_size, anomaly_y_size, 
-#                                                              anomaly_τ, anomaly_smoothness)
+anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
+                                                             anomaly_x_size, anomaly_y_size, 
+                                                             anomaly_τ, anomaly_smoothness)
 
-anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, anomaly_y_size, anomaly_τ, anomaly_smoothness)
+# anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, anomaly_y_size, anomaly_τ, anomaly_smoothness)
+# anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(anomaly_screen_position, )
 
 anomaly_movement = TTauUtils.Eclipses.AnomalyMovement(anomaly_speed, anomaly_x_dir, anomaly_y_dir, -screen_event_position)
 

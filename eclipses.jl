@@ -142,7 +142,7 @@ scatter_intencity = 0.06
 scatter_filter = TTauUtils.Eclipses.flat_scatter_filter
 dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
 
-screen_h = 1
+screen_h = 0.2
 screen_τ = 10
 
 screen_pars = Dict(
@@ -155,7 +155,8 @@ screen_name = "1_10"
 screen_no_anomalies = TTauUtils.Eclipses.GaussianScreen(screen_τ, screen_h)
 
 screen = screen_no_anomalies
-yscreen = [-20:0.5:-5;-5:0.25:-3;-3:0.01:0;0:0.1:1]
+yscreen = [-10:0.5:-5;-5:0.25:-3;-3:0.01:-1;].*screen_h
+yscreen = [yscreen; -1:0.01:1]
 screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, h = 0.01, 
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
@@ -163,20 +164,24 @@ screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientati
 savepurescreenphotometry(mag_name, screen_name, screen_eclipse_photometry, mag_pars, screen_pars)
 mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_name, screen_name)
 
-plot(screeen_eclipse_photometry['B'] .- screeen_eclipse_photometry['V'], screeen_eclipse_photometry['V'], yflip = true, legend = false)
+# plot(screeen_eclipse_photometry['B'] .- screeen_eclipse_photometry['V'], screeen_eclipse_photometry['V'], yflip = true, legend = false)
+
+begin
 
 anomaly_x_vel = 10.0
 anomaly_y_vel = 0.0
-anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
-anomaly_x_dir, anomaly_y_dir = if anomaly_speed > 0.0
-    anomaly_x_vel/anomaly_speed, anomaly_y_vel/anomaly_speed
-else
-    0.0, 0.0
-end
 
-screen_event_position = 0.3
+anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
+anomaly_dir = if anomaly_speed > 0
+    [anomaly_x_vel, anomaly_y_vel]/anomaly_speed
+else
+    [0.0, 0.0]
+end
+anomaly_x_dir, anomaly_y_dir = anomaly_dir
+
+screen_event_position = -1.5*screen_h
 anomaly_screen_position = screen_event_position + spot_y
-anomaly_τ = 0.0
+anomaly_τ = 10.0
 anomaly_x_size = 0.3
 anomaly_obliq = 5
 anomaly_smoothness = 0.1
@@ -193,24 +198,50 @@ anomaly_pars = Dict(
 
 anomaly_name = "test_cloud"
 
-anomaly_y_size = anomaly_x_size/anomaly_obliq 
+anomaly_star_velocity_x = anomaly_x_vel*screen_no_anomalies.direction[2] + (anomaly_y_vel + 1)*screen_no_anomalies.direction[1] 
+anomaly_star_velocity_y = -anomaly_x_vel*screen_no_anomalies.direction[1] + (anomaly_y_vel + 1)*screen_no_anomalies.direction[2] 
+anomaly_star_speed = √(anomaly_star_velocity_x^2 + anomaly_star_velocity_y^2)
 
-anomaly_dir_width = √((anomaly_x_size*anomaly_x_dir)^2 + (anomaly_y_size*anomaly_y_dir)^2)
-
-screen_y_start = (-1 - anomaly_dir_width*(1 + 2*anomaly_smoothness))/(1+anomaly_speed) - screen_event_position
-screen_y_end = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))/(1+anomaly_speed) - screen_event_position
-
-# screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
-# screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
+anomaly_star_direction = [anomaly_star_velocity_x, anomaly_star_velocity_y]
+anomaly_star_direction = if anomaly_star_speed > 0.0
+    anomaly_star_direction/anomaly_star_speed
+else
+    anomaly_star_direction
+end
 
 anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
                                                              anomaly_x_size, anomaly_y_size, 
                                                              anomaly_τ, anomaly_smoothness)
+anomaly_movement = TTauUtils.Eclipses.AnomalyMovement(anomaly_speed, anomaly_x_dir, anomaly_y_dir, -screen_event_position)
+
+anomaly_y_size = anomaly_x_size/anomaly_obliq 
+
+anomaly_dir_width = √((anomaly_x_size*anomaly_star_direction[1])^2 + (anomaly_y_size*anomaly_star_direction[2])^2)
+
+d_x, d_y = anomaly_star_direction
+s_x, s_y = screen_no_anomalies.direction
+x_0, y_0 = anomaly.x, anomaly.y
+v_x, v_y = anomaly_x_vel, anomaly_y_vel
+s_0 = -screen_event_position
+
+path_width = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))
+
+screen_y_start = (s_0*((s_y*d_x - s_x*d_y)*v_x + (v_x*d_y + s_y*d_y)*v_y) - ((s_x*d_x + s_y*d_y)*y_0 + (s_y*d_x - s_x*d_y)*x_0) - path_width)
+screen_y_start = screen_y_start/((s_x*d_x + s_y*d_y)*(v_y + 1) + (s_y*d_x - s_x*d_y)*v_x)
+
+screen_y_end = (s_0*((s_y*d_x - s_x*d_y)*v_x + (v_x*d_y + s_y*d_y)*v_y) - ((s_x*d_x + s_y*d_y)*y_0 + (s_y*d_x - s_x*d_y)*x_0) + path_width)
+screen_y_end = screen_y_end/((s_x*d_x + s_y*d_y)*(v_y + 1) + (s_y*d_x - s_x*d_y)*v_x)
+
+# screen_y_start = (-1 - anomaly_dir_width*(1 + 2*anomaly_smoothness))/(anomaly_star_speed) - screen_event_position
+# screen_y_end = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))/(anomaly_star_speed) - screen_event_position
+
+# screen_y_start = screen_x_start/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
+# screen_y_end = screen_x_end/x_speed_rel_to_y_speed - anomaly_screen_position + spot_y
 
 # anomaly = TTauUtils.Eclipses.XSlitAnomaly(anomaly_screen_position, anomaly_y_size, anomaly_τ, anomaly_smoothness)
 # anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(anomaly_screen_position, )
 
-anomaly_movement = TTauUtils.Eclipses.AnomalyMovement(anomaly_speed, anomaly_x_dir, anomaly_y_dir, -screen_event_position)
+
 
 n_phot = 100
 # xscreen = collect(range(screen_x_start, screen_x_end, n_phot))
@@ -287,5 +318,10 @@ end
 #     # TTauUtils.Eclipses.manyscreens(star, orientation, screens, ys, outfile = "V695Per_scat.eclipse",filters = "RI", scatter = 0.1, scatter_filter = TTauUtils.Eclipses.vosh_scatter_filter)
 
 # plot(eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'], yflip = true, legend = false)
-createanim(eclipse_photometry, yscreen, xscreen)
+# createanim(eclipse_photometry, yscreen, xscreen)
 # end
+
+plt_color = plot(screen_eclipse_photometry['B'] .- screen_eclipse_photometry['V'], screen_eclipse_photometry['V'], yflip = true, legend = false)
+plot!(plt_color, eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'], yflip = true, legend = false)
+
+end

@@ -117,15 +117,15 @@ star = TTauUtils.Star("RYLupi")
 
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
 R_in = 4.0
-W = 1.0
-Ṁ = 1e-7
-incl_angle = 75
+W = 2
+Ṁ = 1e-10
+incl_angle = 80
 
 star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, Ṁ, R_in, R_in + W)
 spot_angle_rad = asin(1/√(R_in + W/2))
 
 orientation = TTauUtils.GeometryAndOrientations.Orientation(incl_angle)
-incl_angle_rad = 75/180*π
+incl_angle_rad = incl_angle/180*π
 
 spot_y = sin(incl_angle_rad - spot_angle_rad)
 
@@ -160,7 +160,7 @@ smooth_screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, or
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
 
-screen_h = 1.0
+screen_h = 4.0
 screen_τ = 10
 
 screen_pars = Dict(
@@ -186,7 +186,7 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 begin
 
-anomaly_x_vel = 10.0
+anomaly_x_vel = 0.0
 anomaly_y_vel = 0.0
 
 anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
@@ -197,11 +197,11 @@ else
 end
 anomaly_x_dir, anomaly_y_dir = anomaly_dir
 
-screen_event_position = 0.5#*screen_h
+screen_event_position = 4.0#*screen_h
 anomaly_screen_position = screen_event_position + spot_y
 anomaly_τ = 0.0
-anomaly_x_size = 0.3
-anomaly_obliq = 5
+anomaly_x_size = 10
+anomaly_obliq = 200
 anomaly_smoothness = 0.01
 
 anomaly_pars = Dict(

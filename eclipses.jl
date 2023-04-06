@@ -118,7 +118,7 @@ star = TTauUtils.Star("RYLupi")
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
 R_in = 4.0
 W = 2
-Ṁ = 1e-10
+Ṁ = 1e-7
 incl_angle = 80
 
 star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, Ṁ, R_in, R_in + W)

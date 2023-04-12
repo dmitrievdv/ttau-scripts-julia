@@ -23,8 +23,9 @@ function calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, scatter_f, σ_f)
     B_V_spot = TTauUtils.Stars.planckfunction(V_ν, T_spot)
     E_V_br = B_V_star*(1 - f_a) + B_V_spot*f_a
     E_V0_br = B_V_star*(1 - f_spot) + B_V_spot*f_spot
-    eclipse_dark = 10^(-0.4*ΔV0)*(1 + scatter_f)
-    return 2.5*log10(1 + S_f*(E_V_br/E_V0_br/eclipse_dark + (eclipse_dark - scatter_f)^σ_f/eclipse_dark))
+    eclipse_dark = 10^(-0.4*ΔV0)
+    # return 2.5*log10(1 + S_f*(E_V_br/E_V0_br/eclipse_dark/(1 + scatter_f) + (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f/eclipse_dark/(1 + scatter_f)))
+    return 2.5*log10(1 + S_f*E_V_br/E_V0_br/eclipse_dark/(1+scatter_f)*(1 - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
 end
 
 function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f)
@@ -35,8 +36,9 @@ function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f)
     E_B_br = B_B_star*(1 - f_a) + B_B_spot*f_a
     E_B0_br = B_B_star*(1 - f_spot) + B_B_spot*f_spot
     ΔB0 = ΔBV0 + ΔV0
-    eclipse_dark = 10^(-0.4*ΔB0)*(1 + scatter_f)
-    return 2.5*log10(1 + S_f*(E_B_br/E_B0_br/eclipse_dark + (eclipse_dark - scatter_f)^σ_f/eclipse_dark))
+    eclipse_dark = 10^(-0.4*ΔB0)
+    # return 2.5*log10(1 + S_f*(E_B_br/E_B0_br/eclipse_dark/(1 + scatter_f) + (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f/eclipse_dark/(1 + scatter_f)))
+    return 2.5*log10(1 + S_f*E_B_br/E_B0_br/eclipse_dark/(1+scatter_f)*(1 - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
 end
 
 ΔV0 = 2
@@ -46,8 +48,8 @@ T_spots = [5e3:5e2:20e3;]
 lgf_as = [-2:0.05:0;]
 lgS_fs = [-3:0.05:0;]
 lgf_spots = [-4:0.1:0;]
-lgσ_fs = [-1:0.2:1;]
-# scatter_f = 0.06
+lgσ_fs = [0.0]
+scatter_f = 0.06
 
 function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f)   
     n_T_spot = length(T_spots)
@@ -85,7 +87,7 @@ end
 ΔVs, ΔBVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f)
 begin
 ΔVobs = 0.2; δΔV = 0.1
-ΔBVobs = 0.3; δΔBV = 0.1
+ΔBVobs = 0.5; δΔBV = 0.1
 choose(ΔV, ΔBV) = √(((ΔV - ΔVobs)/δΔV)^2  + ((ΔBV - ΔBVobs)/δΔBV)^2)
 chooseV(ΔV) = abs((ΔV - ΔVobs)/δΔV) 
 chooseBV(ΔBV) = abs((ΔBV - ΔBVobs)/δΔBV) 
@@ -194,5 +196,5 @@ BVplt = heatmap(plt_x, plt_y, ΔBVs_flat)
 # plot(residVplt, residBVplt, residplt, layout = layout = grid(1, 3, widths=[0.3 ,0.3, 0.4]), size = (1300,400))
 plot!(residplt_sig, xlabel = x_label, ylabel = y_label)
 
-plot(residplt_spot, residplt_w, layout = grid(2,1), size = (600, 600))
+plot(residplt_spot, residplt_w, residplt_sig, layout = grid(3,1), size = (600, 900))
 end

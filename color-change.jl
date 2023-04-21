@@ -16,7 +16,7 @@ c = TTauUtils.ConstantsInCGS.c
 B_ν = c/B_filter.λ_0
 V_ν = c/V_filter.λ_0
 
-function calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, scatter_f, σ_f)
+function calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, scatter_f, σ_f, τ_w)
     V_filter = TTauUtils.Eclipses.V
     V_ν = c/V_filter.λ_0
     B_V_star = TTauUtils.Stars.planckfunction(V_ν, T_star)
@@ -25,10 +25,10 @@ function calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, scatter_f, σ_f)
     E_V0_br = B_V_star*(1 - f_spot) + B_V_spot*f_spot
     eclipse_dark = 10^(-0.4*ΔV0)
     # return 2.5*log10(1 + S_f*(E_V_br/E_V0_br/eclipse_dark/(1 + scatter_f) + (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f/eclipse_dark/(1 + scatter_f)))
-    return 2.5*log10(1 + S_f*E_V_br/E_V0_br/eclipse_dark/(1+scatter_f)*(1 - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
+    return -2.5*log10(1 + S_f*E_V_br/E_V0_br/eclipse_dark/(1+scatter_f)*(exp(-τ_w) - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
 end
 
-function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f)
+function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f, τ_w)
     B_filter = TTauUtils.Eclipses.B
     B_ν = c/B_filter.λ_0
     B_B_star = TTauUtils.Stars.planckfunction(B_ν, T_star)
@@ -38,20 +38,23 @@ function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f)
     ΔB0 = ΔBV0 + ΔV0
     eclipse_dark = 10^(-0.4*ΔB0)
     # return 2.5*log10(1 + S_f*(E_B_br/E_B0_br/eclipse_dark/(1 + scatter_f) + (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f/eclipse_dark/(1 + scatter_f)))
-    return 2.5*log10(1 + S_f*E_B_br/E_B0_br/eclipse_dark/(1+scatter_f)*(1 - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
+    return -2.5*log10(1 + S_f*E_B_br/E_B0_br/eclipse_dark/(1+scatter_f)*(exp(-τ_w) - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
 end
 
 ΔV0 = 2
 ΔBV0 = 0.3
 T_spots = [5e3:5e2:20e3;]
 # f_spot = 3e-2
-lgf_as = [-2:0.05:0;]
-lgS_fs = [-3:0.05:0;]
-lgf_spots = [-4:0.1:0;]
-lgσ_fs = [0.0]
+lgf_as = [-2:0.1:0;]
+lgS_fs = [-3:0.1:-1;]
+lgf_spots = [-3:0.1:-1;]
+lgσ_fs = [-1:0.1:1;]
 scatter_f = 0.06
+scatter_vb = 1.3
 
-function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f)   
+τ_w = 0
+
+function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f, τ_w, scatter_vb)   
     n_T_spot = length(T_spots)
     n_f_a = length(lgf_as)
     n_S_f = length(lgS_fs)
@@ -69,13 +72,24 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, 
                 S_f = 10^lgS_fs[i_S_f]
                 for i_f_spot = 1:n_f_spot
                     f_spot = 10^lgf_spots[i_f_spot]
-                    for i_σ_f = 1:n_σ_f
-                        σ_f = 10^lgσ_fs[i_σ_f]
-                        ΔV = calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, 0.06, σ_f)
-                        ΔB = calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, 0.06, σ_f)
-                        ΔBV = ΔB - ΔV
-                        ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔV
-                        ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔBV
+                    if (f_a*S_f ≤ f_spot) & ((1-f_a)*S_f ≤ (1 - f_spot))
+                        for i_σ_f = 1:n_σ_f
+                            σ_f = 10^lgσ_fs[i_σ_f]
+                            try 
+                                ΔV = calcΔV(f_spot, f_a, T_spot, T_star, S_f, ΔV0, scatter_f, σ_f, τ_w)
+                                ΔB = calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_vb*scatter_f, σ_f, τ_w)
+                                ΔBV = ΔB - ΔV
+                                ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔV
+                                ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔBV
+                            catch e
+                                ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e-2
+                                ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e-2
+                            end
+                            
+                        end
+                    else
+                        ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, :] .= 1e2
+                        ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, :] .= 1e2
                     end
                 end
             end
@@ -84,10 +98,10 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, 
     return ΔVs, ΔBVs
 end
 
-ΔVs, ΔBVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f)
+ΔVs, ΔBVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f, τ_w, scatter_vb)
 begin
-ΔVobs = 0.2; δΔV = 0.1
-ΔBVobs = 0.5; δΔBV = 0.1
+ΔVobs = -0.2; δΔV = 0.1
+ΔBVobs = -0.5; δΔBV = 0.1
 choose(ΔV, ΔBV) = √(((ΔV - ΔVobs)/δΔV)^2  + ((ΔBV - ΔBVobs)/δΔBV)^2)
 chooseV(ΔV) = abs((ΔV - ΔVobs)/δΔV) 
 chooseBV(ΔBV) = abs((ΔBV - ΔBVobs)/δΔBV) 
@@ -196,5 +210,10 @@ BVplt = heatmap(plt_x, plt_y, ΔBVs_flat)
 # plot(residVplt, residBVplt, residplt, layout = layout = grid(1, 3, widths=[0.3 ,0.3, 0.4]), size = (1300,400))
 plot!(residplt_sig, xlabel = x_label, ylabel = y_label)
 
-plot(residplt_spot, residplt_w, residplt_sig, layout = grid(3,1), size = (600, 900))
+allresidplt = plot(residplt_spot, residplt_w, residplt_sig, layout = grid(3,1), size = (600, 900))
+
+normal_data = ΔVs .< 50
+
+hist_dataV = vec(ΔVs[normal_data])
+hist_dataBV = vec(ΔBVs[normal_data])
 end

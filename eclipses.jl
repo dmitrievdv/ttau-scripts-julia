@@ -118,7 +118,7 @@ star = TTauUtils.Star("RYLupi")
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
 R_in = 4.0
 W = 2
-Ṁ = 1e-7
+Ṁ = 1e-8
 incl_angle = 80
 
 star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, Ṁ, R_in, R_in + W)
@@ -160,7 +160,7 @@ smooth_screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, or
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
 
-screen_h = 4.0
+screen_h = 1.0
 screen_τ = 10
 
 screen_pars = Dict(
@@ -186,8 +186,8 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 begin
 
-anomaly_x_vel = 0.0
-anomaly_y_vel = 0.0
+anomaly_x_vel = 10.0
+anomaly_y_vel = -1.0
 
 anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
 anomaly_dir = if anomaly_speed > 0
@@ -197,11 +197,11 @@ else
 end
 anomaly_x_dir, anomaly_y_dir = anomaly_dir
 
-screen_event_position = 4.0#*screen_h
+screen_event_position = 1.2#*screen_h
 anomaly_screen_position = screen_event_position + spot_y
-anomaly_τ = 0.0
-anomaly_x_size = 10
-anomaly_obliq = 200
+anomaly_τ = 10.0
+anomaly_x_size = 0.5
+anomaly_obliq = 5
 anomaly_smoothness = 0.01
 
 anomaly_pars = Dict(
@@ -229,9 +229,9 @@ end
 
 anomaly_y_size = anomaly_x_size/anomaly_obliq 
 
-anomaly = TTauUtils.Eclipses.SmoothBorderScreenAnomaly(0.0, anomaly_screen_position, 
+anomaly = TTauUtils.Eclipses.GaussianScreenAnomaly(0.0, anomaly_screen_position, 
                                                              anomaly_x_size, anomaly_y_size, 
-                                                             anomaly_τ, anomaly_smoothness)
+                                                             anomaly_τ)
 anomaly_movement = TTauUtils.Eclipses.AnomalyMovement(anomaly_speed, anomaly_x_dir, anomaly_y_dir, -screen_event_position)
 
 anomaly_dir_width = √((anomaly_x_size*anomaly_star_direction[1])^2 + (anomaly_y_size*anomaly_star_direction[2])^2)
@@ -242,7 +242,7 @@ x_0, y_0 = anomaly.x, anomaly.y
 v_x, v_y = anomaly_x_vel, anomaly_y_vel
 s_0 = -screen_event_position
 
-path_width = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))
+path_width = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))*1.1
 
 screen_y_start = (s_0*((s_y*d_x - s_x*d_y)*v_x + (v_x*d_y + s_y*d_y)*v_y) - ((s_x*d_x + s_y*d_y)*y_0 + (s_y*d_x - s_x*d_y)*x_0) - path_width)
 screen_y_start = screen_y_start/((s_x*d_x + s_y*d_y)*(v_y + 1) + (s_y*d_x - s_x*d_y)*v_x)
@@ -296,6 +296,45 @@ plot!(eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'
 # savephotometry(mag_name, anomaly_name, eclipse_photometry, used_filters, mag_pars, screen_pars, anomaly_pars)
 # mag_pars, anomaly_pars, eclipse_photometry = loadphotometry(mag_name, anomaly_name)                                        
 
+function ploteclipse(eclipse_photometry, yscreen, xscreen, is)
+    xs = [-2:0.01:2;]
+    ys = [-2:0.01:2;]
+    n_x = length(xs)
+    n_y = length(ys)
+    τs = zeros(n_x, n_y)
+    phot = zeros(n_x, n_y)
+
+    for i = 1:n_x, j = 1:n_y
+        τs[i,j] = TTauUtils.Eclipses.opticaldepthvis(screen, 0, xs[i], ys[j])
+        phot[i,j] = if xs[i]^2 + ys[j]^2 < 1.0
+            TTauUtils.Stars.pictureplanecontinuum(star, 3e8/550e-9, xs[i], ys[j], orientation.star_axis)
+        else
+            TTauUtils.Stars.starcontinuum(star, 3e8/550e-9)*exp(-screen_τ)
+        end
+    end
+
+    println(is)
+    plt_color = plot(screen_eclipse_photometry['B'] .- screen_eclipse_photometry['V'], screen_eclipse_photometry['V'], 
+                     yflip = true, legend = false, lc = :black, lw = 2, xlabel = "B - V", ylabel = "V", bottommargin = 30px, leftmargin = 30px)
+    plot!(plt_color, rough_screen_eclipse_photometry['B'] .- rough_screen_eclipse_photometry['V'], rough_screen_eclipse_photometry['V'],
+            lw = 2, lc = :black, ls = :dash)
+    plot!(plt_color, smooth_screen_eclipse_photometry['B'] .- smooth_screen_eclipse_photometry['V'], smooth_screen_eclipse_photometry['V'],
+            lw = 2, lc = :black, ls = :dash)
+    plot!(plt_color, eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'], yflip = true, legend = false, 
+            lc = :red, lw = 2)
+    scatter!(plt_color, [eclipse_photometry['B'][is] - eclipse_photometry['V'][is]], [eclipse_photometry['V'][is]], mc = :red)
+    for i = 1:n_x, j = 1:n_y
+        τs[i,j] = TTauUtils.Eclipses.opticaldepthvis(screen, yscreen[is], xs[i] - xscreen[is], ys[j])
+        # phot[i,j] = TTauUtils.Stars.pictureplanecontinuum(star, 3e8/550e-9, xs[i], ys[j], orientation.star_axis)
+    end
+    screen_map = heatmap(xs, ys, τs', clims = (0, 10), aspect_ratio = :equal)
+    phot_map = heatmap(xs, ys, (log10.(phot) - log10(ℯ) .* τs)', aspect_ratio = :equal, title = "Star View",
+                clims = (log10(TTauUtils.Stars.starcontinuum(star, 3e8/550e-9)) + log10(exp(-screen_τ)), log10(TTauUtils.Stars.spotcontinuum(star, 3e8/550e-9))))
+    plot!(screen_map, cos.([-2π:0.01:2π;]), sin.([-2π:0.01:2π;]), label = "Star disk", title = "Optical Depth", lw = 1, lc = :red)
+    plot(plt_color, screen_map, phot_map, layout = @layout([A B C]), size = (1500, 500))
+end
+
+
 function createanim(eclipse_photometry, yscreen, xscreen; dir = "eclipses")
     xs = [-2:0.01:2;]
     ys = [-2:0.01:2;]
@@ -313,13 +352,13 @@ function createanim(eclipse_photometry, yscreen, xscreen; dir = "eclipses")
         end
     end
 
-    screen_map = heatmap(xs, ys, τs')
+    # screen_map = heatmap(xs, ys, τs')
 
     anim = @animate for is = 1:length(yscreen)
         println(is)
         plt_color = plot(screen_eclipse_photometry['B'] .- screen_eclipse_photometry['V'], screen_eclipse_photometry['V'], yflip = true, legend = false)
-plot!(plt_color, rough_screen_eclipse_photometry['B'] .- rough_screen_eclipse_photometry['V'], rough_screen_eclipse_photometry['V'], yflip = true, legend = false)
-plot!(plt_color, smooth_screen_eclipse_photometry['B'] .- smooth_screen_eclipse_photometry['V'], smooth_screen_eclipse_photometry['V'], yflip = true, legend = false)
+        plot!(plt_color, rough_screen_eclipse_photometry['B'] .- rough_screen_eclipse_photometry['V'], rough_screen_eclipse_photometry['V'], yflip = true, legend = false)
+        plot!(plt_color, smooth_screen_eclipse_photometry['B'] .- smooth_screen_eclipse_photometry['V'], smooth_screen_eclipse_photometry['V'], yflip = true, legend = false)
         plot!(plt_color, eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'], yflip = true, legend = false)
         scatter!(plt_color, [eclipse_photometry['B'][is] - eclipse_photometry['V'][is]], [eclipse_photometry['V'][is]])
         for i = 1:n_x, j = 1:n_y

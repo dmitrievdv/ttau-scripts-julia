@@ -11,8 +11,8 @@ spec
 *.gif
 *.mp4
 *.dat
+*.bson
 
-.gitignore
 data*
 data
 test.test

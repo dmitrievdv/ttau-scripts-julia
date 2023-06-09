@@ -2,12 +2,10 @@ using TTauUtils
 using Plots
 using Plots.PlotMeasures
 using LaTeXStrings
+using BSON
+using DelimitedFiles
 
 star = Star("RYLupi")
-
-T_star = star.T
-
-# T_star = 4000
 
 V_filter = TTauUtils.Eclipses.V
 B_filter = TTauUtils.Eclipses.B
@@ -42,23 +40,29 @@ function calcΔB(f_spot, f_a, T_spot, T_star, S_f, ΔV0, ΔBV0, scatter_f, σ_f,
     return -2.5*log10(1 + S_f*E_B_br/E_B0_br/eclipse_dark/(1+scatter_f)*(exp(-τ_w) - (eclipse_dark*(1 + scatter_f) - scatter_f)^σ_f))
 end
 
-ΔV0 = 1.5
-ΔBV0 = 0.3
-T_spots = [5e3:5e2:15e3;]
-# f_spot = 3e-2
-lgf_as = [-1.5:0.05:0;]
-lgS_fs = [-2.5:0.05:0;]
-lgf_spots = [-2.5:0.05:0;]
-lgσ_fs = [-1:0.1:1;]
-scatter_f = 0.06
-scatter_vb = 1.3
+function savedata(filename, eclipse_pars, grid, Vs, BVs)
+    savedir = "color-change-saves"
+    mkpath("$savedir/$filename")
+    writedlm("$savedir/$filename/start.dat", eclipse_pars)
+    writedlm("$savedir/$filename/grid.dat", grid)
+    bson("$savedir/$filename/data.bson", Dict(:V => Vs, :BV => BVs))
+end
 
-# f_as = [0:0.02:1;]
-# f_spots = [0.001:0.001:0.02;]
-# S_fs = [0.001:0.001:0.02;]
-# σ_fs = [0.1:0.05:1;]
-
-τ_w = 10
+function readdata(filename)
+    savedir = "color-change-saves"
+    pars = readdlm("$savedir/$filename/start.dat")
+    grid_data = readdlm("$savedir/$filename/grid.dat")
+    n_grid = size(grid_data)[1]
+    grid = Vector{Float64}[]
+    for i_grid = 1:n_grid
+        ith_grid = grid_data[i_grid, :] 
+        push!(grid, Float64.(ith_grid[ith_grid .!= ""]))
+    end
+    data = BSON.load("$savedir/$filename/data.bson")
+    Vs = data[:V]
+    BVs = data[:BV]
+    return pars, grid, Vs, BVs
+end
 
 function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, f_as_in, S_fs_in, f_spots_in, σ_fs_in, scatter_f, τ_w, scatter_vb; log_scale = true)   
     n_T_spot = length(T_spots)
@@ -96,6 +100,7 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, f_as_in, S_fs_in, f_spots_i
 
     for i_T_spot = 1:n_T_spot
         T_spot = T_spots[i_T_spot]
+        println(T_spot)
         for i_f_a = 1:n_f_a
             f_a = f_as[i_f_a]
             for i_S_f = 1:n_S_f
@@ -112,8 +117,8 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, f_as_in, S_fs_in, f_spots_i
                                 ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔV
                                 ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = ΔBV
                             catch e
-                                ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e-2
-                                ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e-2
+                                ΔVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e2
+                                ΔBVs[i_T_spot, i_f_a, i_S_f, i_f_spot, i_σ_f] = 1e2
                             end
                             
                         end
@@ -128,10 +133,63 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, f_as_in, S_fs_in, f_spots_i
     return ΔVs, ΔBVs
 end
 
-ΔVs, ΔBVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f, τ_w, scatter_vb, log_scale = true)
+# T_star = star.T
+T_star = 4000
+
+τ_w = 10
+ΔV0 = 1.5
+ΔBV0 = 0.3
+scatter_f = 0.06
+scatter_vb = 1.3
+
+T_spot_grid = 5e3:5e2:15e3
+lgf_a_grid = -1.5:0.05:0
+lgS_f_grid = -2.5:0.05:0
+lgf_spot_grid = -2.5:0.05:0
+lgσ_f_grid = -1:0.1:1
+
+T_spots = collect(T_spot_grid)
+# f_spot = 3e-2
+lgf_as = collect(lgf_a_grid)
+lgS_fs = collect(lgS_f_grid)
+lgf_spots = collect(lgf_spot_grid)
+lgσ_fs = collect(lgσ_f_grid)
+
+name = "4000-cloud"
+
+not_calc = try readdata(name)
+    false
+catch e
+    true
+end
+
+ignore_data = false
+
+ΔVs, ΔBVs = if ignore_data | not_calc
+    Vs, BVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f, τ_w, scatter_vb, log_scale = true)
+    savedata(name, [τ_w, ΔV0, ΔBV0, scatter_f, scatter_vb], 
+                   [T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs],
+                    Vs, BVs)
+    Vs, BVs
+else
+    pars, grids, Vs, BVs = readdata(name)
+    τ_w, ΔV0, ΔBV0, sactter_f, scatter_vb = pars
+    T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs = grids
+    Vs, BVs
+end
+# f_as = [0:0.02:1;]
+# f_spots = [0.001:0.001:0.02;]
+# S_fs = [0.001:0.001:0.02;]
+# σ_fs = [0.1:0.05:1;]
+
+
+
+
+
+
 begin
-ΔVobs = 0.3; δΔV = 1
-ΔBVobs = 0.3; δΔBV = 1
+ΔVobs = -0.3; δΔV = 1
+ΔBVobs = -0.3; δΔBV = 1
 choose(ΔV, ΔBV) = √(((ΔV - ΔVobs)/δΔV)^2  + ((ΔBV - ΔBVobs)/δΔBV)^2)
 chooseV(ΔV) = abs((ΔV - ΔVobs)/δΔV) 
 chooseBV(ΔBV) = abs((ΔBV - ΔBVobs)/δΔBV) 
@@ -199,7 +257,7 @@ plt_x = flat_par_vals[2]
 plt_y = flat_par_vals[1]
 x_label = flat_par_names[2]
 y_label = flat_par_names[1]
-residplt_spot = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims)
+residplt_spot = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims, c = cgrad([:black, :white]))
 residVplt_spot = heatmap(plt_x, plt_y, resid_ΔV_flat, clims = color_lims, colorbar = :false)
 residBVplt_spot = heatmap(plt_x, plt_y, resid_ΔBV_flat, clims = color_lims, colorbar = :false)
 Vplt_spot = heatmap(plt_x, plt_y, ΔVs_flat)
@@ -222,7 +280,7 @@ plt_x = flat_par_vals[2]
 plt_y = flat_par_vals[1]
 x_label = flat_par_names[2]
 y_label = flat_par_names[1]
-residplt_w = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims)
+residplt_w = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims, c = cgrad([:black, :white]))
 residVplt_w = heatmap(plt_x, plt_y, resid_ΔV_flat, clims = color_lims, colorbar = :false)
 residBVplt_w = heatmap(plt_x, plt_y, resid_ΔBV_flat, clims = color_lims, colorbar = :false)
 Vplt = heatmap(plt_x, plt_y, ΔVs_flat)
@@ -245,7 +303,7 @@ plt_x = flat_par_vals[2]
 plt_y = flat_par_vals[1]
 y_label = flat_par_names[2]
 x_label = flat_par_names[1]
-residplt_sig = heatmap(plt_y, plt_x, resid_ΔV_ΔBV_flat', clims = color_lims)
+residplt_sig = heatmap(plt_y, plt_x, resid_ΔV_ΔBV_flat', clims = color_lims, c = cgrad([:black, :white]))
 residVplt_sig = heatmap(plt_x, plt_y, resid_ΔV_flat, clims = color_lims, colorbar = :false)
 residBVplt_sig = heatmap(plt_x, plt_y, resid_ΔBV_flat, clims = color_lims, colorbar = :false)
 Vplt = heatmap(plt_x, plt_y, ΔVs_flat)
@@ -268,7 +326,7 @@ plt_x = flat_par_vals[2]
 plt_y = flat_par_vals[1]
 x_label = flat_par_names[2]
 y_label = flat_par_names[1]
-residplt_sf = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims)
+residplt_sf = heatmap(plt_x, plt_y, resid_ΔV_ΔBV_flat, clims = color_lims, c = cgrad([:black, :white]))
 residVplt_sf = heatmap(plt_x, plt_y, resid_ΔV_flat, clims = color_lims, colorbar = :false)
 residBVplt_sf = heatmap(plt_x, plt_y, resid_ΔBV_flat, clims = color_lims, colorbar = :false)
 Vplt = heatmap(plt_x, plt_y, ΔVs_flat)
@@ -278,12 +336,56 @@ BVplt = heatmap(plt_x, plt_y, ΔBVs_flat)
 plot!(residplt_sf, xlabel = x_label, ylabel = y_label)
 
 allresidplt = plot(residplt_spot, residplt_w, residplt_sf, residplt_sig, layout = grid(2,2), size = (1200, 600),
-                     plot_title = L"\Delta V = %$ΔVobs,\ \Delta (B-V) = %$ΔBVobs,\ \tau = %$τ_w", leftmargin = 20px, bottommargin = 20px)
+                     plot_title = L"\Delta V = %$ΔVobs,\ \Delta (B-V) = %$ΔBVobs,\ \tau_a = %$τ_w", leftmargin = 20px, bottommargin = 20px)
+
+allresidplt
 
 normal_data = ΔVs .< 50
 
-hist_dataV = vec(ΔVs[normal_data])
-hist_dataBV = vec(ΔBVs[normal_data])
+hist_dataV = vec(ΔVs[11,:,:,11,:])
+hist_dataBV = vec(ΔBVs[11,:,:,11,:])
 
-allresidplt
+scatter(hist_dataV, hist_dataBV)
+
+end
+
+begin
+    hist_dataV = vec(ΔVs[11:21,:,:,1,:])
+    hist_dataBV = vec(ΔBVs[11:21,:,:,1,:])
+
+    normal_V_data = hist_dataV[hist_dataV .< 50]
+    normal_BV_data = hist_dataBV[hist_dataBV .< 50]
+
+    box_width = 0.02
+    start_val = -0.0; end_val = 1.0
+    V_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
+    BV_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
+    n_V_boxes = length(V_boxes)
+    n_BV_boxes = length(BV_boxes)
+
+    function inboxcount2d(x_boxes, y_boxes, x_array, y_array)
+        n_x_box = length(x_boxes)
+        n_y_box = length(y_boxes)
+        counts = zeros(Int, (n_x_box, n_y_box))
+        x_box_width = x_boxes[2] - x_boxes[1]
+        y_box_width = y_boxes[2] - y_boxes[1]
+        n_array = length(x_array)
+        for i_arr = 1:n_array
+            x = x_array[i_arr]
+            y = y_array[i_arr]
+            for i_box_x = 1:n_x_box, i_box_y = 1:n_y_box 
+                if (abs(x - x_boxes[i_box_x]) < x_box_width/2) & (abs(y - y_boxes[i_box_y]) < y_box_width/2)
+                    counts[i_box_x, i_box_y] += 1
+                    break
+                end
+            end
+        end
+        return counts
+    end
+
+    counts = inboxcount2d(V_boxes, BV_boxes, normal_V_data, normal_BV_data) 
+
+    # scatter(normal_V_data, normal_BV_data, xlims = (0,1), ylims = (0,1), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", ms = 0.1, aspect_ratio = :equal)
+    heatmap(V_boxes, BV_boxes, log10.(counts'), aspect_ratio = :equal, c = cgrad([:white, :black]), 
+            clims = (0, 5), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", colorbar_title = L"\log N")
 end

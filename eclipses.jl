@@ -118,7 +118,7 @@ star = TTauUtils.Star("RYLupi")
 # T_spot = TTauUtils.Stars.calcmagspottemperature(star, 1e-7, 4, 5)
 R_in = 4.0
 W = 2
-Ṁ = 1e-8
+Ṁ = 1e-7
 incl_angle = 80
 
 star = TTauUtils.Stars.MagnetosphereSpotStarFromMdot(star, Ṁ, R_in, R_in + W)
@@ -142,6 +142,8 @@ scatter_intencity = 0.06
 scatter_filter = TTauUtils.Eclipses.flat_scatter_filter
 dispersion_filter = TTauUtils.Eclipses.interstellar_dispersion
 
+println("Rough screen...")
+
 screen_h = 0.01
 screen_τ = 10
 screen = TTauUtils.Eclipses.GaussianScreen(screen_τ, screen_h)
@@ -151,6 +153,8 @@ rough_screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, ori
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
 
+println("Smooth screen...")
+
 screen_h = 10
 screen_τ = 10
 screen = TTauUtils.Eclipses.GaussianScreen(screen_τ, screen_h)
@@ -159,6 +163,8 @@ yscreen = [yscreen; -1:0.01:1]
 smooth_screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, h = 0.01, 
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
+
+println("Medium screen...")
 
 screen_h = 1.0
 screen_τ = 10
@@ -186,8 +192,10 @@ mag_pars, screen_pars, screeen_eclipse_photometry = loadphotometry(star, mag_nam
 
 begin
 
-anomaly_x_vel = 10.0
-anomaly_y_vel = -1.0
+println("Anomaly...")
+
+anomaly_x_vel = 0.0
+anomaly_y_vel = 5.0
 
 anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
 anomaly_dir = if anomaly_speed > 0

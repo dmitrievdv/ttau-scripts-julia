@@ -133,14 +133,14 @@ function findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, f_as_in, S_fs_in, f_spots_i
     return ΔVs, ΔBVs
 end
 
-# T_star = star.T
-T_star = 4000
+T_star = star.T
+# T_star = 4000
 
-τ_w = 10
-ΔV0 = 1.5
-ΔBV0 = 0.3
-scatter_f = 0.06
-scatter_vb = 1.3
+τ_w = 0
+ΔV0 = 2.35
+ΔBV0 = 0.2
+scatter_f = 0.07
+scatter_vb = 1
 
 T_spot_grid = 5e3:5e2:15e3
 lgf_a_grid = -1.5:0.05:0
@@ -155,7 +155,7 @@ lgS_fs = collect(lgS_f_grid)
 lgf_spots = collect(lgf_spot_grid)
 lgσ_fs = collect(lgσ_f_grid)
 
-name = "4000-cloud"
+name = "RYLup-flipC"
 
 not_calc = try readdata(name)
     false
@@ -184,12 +184,12 @@ end
 
 
 
-
+ΔVobs = -0.1; δΔV = 0.05
+ΔBVobs = -0.25; δΔBV = √2*0.05
 
 
 begin
-ΔVobs = -0.3; δΔV = 1
-ΔBVobs = -0.3; δΔBV = 1
+
 choose(ΔV, ΔBV) = √(((ΔV - ΔVobs)/δΔV)^2  + ((ΔBV - ΔBVobs)/δΔBV)^2)
 chooseV(ΔV) = abs((ΔV - ΔVobs)/δΔV) 
 chooseBV(ΔBV) = abs((ΔBV - ΔBVobs)/δΔBV) 
@@ -242,7 +242,7 @@ par_vals = [T_spots,  lgf_as, lgS_fs, lgf_spots, lgσ_fs]
 # par_names = [L"T_{sp}", L"f_w", L"S_f", L"f", L"σ_f"] 
 # par_vals = [T_spots,  f_as, S_fs, f_spots, σ_fs]
 
-color_lims = (0, 0.25)
+color_lims = (0, 4)
 flat_dims = (1,4)
 flat_par_names = par_names[collect(flat_dims)]
 flat_par_vals = par_vals[collect(flat_dims)]
@@ -339,25 +339,22 @@ allresidplt = plot(residplt_spot, residplt_w, residplt_sf, residplt_sig, layout 
                      plot_title = L"\Delta V = %$ΔVobs,\ \Delta (B-V) = %$ΔBVobs,\ \tau_a = %$τ_w", leftmargin = 20px, bottommargin = 20px)
 
 allresidplt
-
-normal_data = ΔVs .< 50
-
-hist_dataV = vec(ΔVs[11,:,:,11,:])
-hist_dataBV = vec(ΔBVs[11,:,:,11,:])
-
-scatter(hist_dataV, hist_dataBV)
-
 end
 
 begin
-    hist_dataV = vec(ΔVs[11:21,:,:,1,:])
-    hist_dataBV = vec(ΔBVs[11:21,:,:,1,:])
+    V_err = δΔV
+    BV_err = δΔBV
+
+    target_V = ΔVobs
+    target_BV = ΔBVobs
+    hist_dataV = vec(ΔVs[:,:,:,:,:])
+    hist_dataBV = vec(ΔBVs[:,:,:,:,:])
 
     normal_V_data = hist_dataV[hist_dataV .< 50]
     normal_BV_data = hist_dataBV[hist_dataBV .< 50]
 
-    box_width = 0.02
-    start_val = -0.0; end_val = 1.0
+    box_width = 0.05
+    start_val = -5.0; end_val = 0.0
     V_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
     BV_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
     n_V_boxes = length(V_boxes)
@@ -369,16 +366,19 @@ begin
         counts = zeros(Int, (n_x_box, n_y_box))
         x_box_width = x_boxes[2] - x_boxes[1]
         y_box_width = y_boxes[2] - y_boxes[1]
+        start_x = x_boxes[1] - x_box_width
+        start_y = y_boxes[1] - y_box_width
+        println(start_x, " ", start_y)
         n_array = length(x_array)
         for i_arr = 1:n_array
             x = x_array[i_arr]
             y = y_array[i_arr]
-            for i_box_x = 1:n_x_box, i_box_y = 1:n_y_box 
-                if (abs(x - x_boxes[i_box_x]) < x_box_width/2) & (abs(y - y_boxes[i_box_y]) < y_box_width/2)
-                    counts[i_box_x, i_box_y] += 1
-                    break
-                end
+            i_box_x = ceil(Int, (x-start_x)/x_box_width)
+            i_box_y = ceil(Int, (y-start_y)/y_box_width)
+            if (i_box_x > n_x_box) | (i_box_y > n_y_box) | (i_box_x < 1) | (i_box_y < 1)
+                continue
             end
+            counts[i_box_x, i_box_y] += 1
         end
         return counts
     end
@@ -386,6 +386,10 @@ begin
     counts = inboxcount2d(V_boxes, BV_boxes, normal_V_data, normal_BV_data) 
 
     # scatter(normal_V_data, normal_BV_data, xlims = (0,1), ylims = (0,1), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", ms = 0.1, aspect_ratio = :equal)
-    heatmap(V_boxes, BV_boxes, log10.(counts'), aspect_ratio = :equal, c = cgrad([:white, :black]), 
-            clims = (0, 5), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", colorbar_title = L"\log N")
+    hist_plt = heatmap(BV_boxes, V_boxes, log10.(counts), aspect_ratio = :equal, c = cgrad([:white, :gray20]), xlims = (-1.5, 0), ylims = (-1, 0),
+            clims = (0, 5), ylabel = L"\Delta V", xlabel = L"\Delta (B-V)", colorbar_title = L"\log N")
+    scatter!(hist_plt, [target_BV], [target_V], xerr = [BV_err], yerr = [V_err], lc = :black, mc = :black)
 end
+
+savefig(hist_plt, "color-change-saves/$name-hist.pdf")
+savefig(allresidplt, "color-change-saves/$name-resid.pdf")

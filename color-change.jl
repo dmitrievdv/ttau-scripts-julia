@@ -137,10 +137,10 @@ T_star = star.T
 # T_star = 4000
 
 τ_w = 0
-ΔV0 = 2.35
-ΔBV0 = 0.2
+ΔV0 = 2.6
+ΔBV0 = 0.5
 scatter_f = 0.07
-scatter_vb = 1
+scatter_vb = 1.0
 
 T_spot_grid = 5e3:5e2:15e3
 lgf_a_grid = -1.5:0.05:0
@@ -155,7 +155,7 @@ lgS_fs = collect(lgS_f_grid)
 lgf_spots = collect(lgf_spot_grid)
 lgσ_fs = collect(lgσ_f_grid)
 
-name = "RYLup-flipC"
+name = "RYLup-flipD"
 
 not_calc = try readdata(name)
     false
@@ -163,7 +163,7 @@ catch e
     true
 end
 
-ignore_data = false
+ignore_data = true
 
 ΔVs, ΔBVs = if ignore_data | not_calc
     Vs, BVs = findΔVsΔBVs(ΔV0, ΔBV0, T_star, T_spots, lgf_as, lgS_fs, lgf_spots, lgσ_fs, scatter_f, τ_w, scatter_vb, log_scale = true)
@@ -184,8 +184,8 @@ end
 
 
 
-ΔVobs = -0.1; δΔV = 0.05
-ΔBVobs = -0.25; δΔBV = √2*0.05
+ΔVobs = -0.05; δΔV = 0.05
+ΔBVobs = -0.55; δΔBV = √2*0.05
 
 
 begin
@@ -386,8 +386,8 @@ begin
     counts = inboxcount2d(V_boxes, BV_boxes, normal_V_data, normal_BV_data) 
 
     # scatter(normal_V_data, normal_BV_data, xlims = (0,1), ylims = (0,1), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", ms = 0.1, aspect_ratio = :equal)
-    hist_plt = heatmap(BV_boxes, V_boxes, log10.(counts), aspect_ratio = :equal, c = cgrad([:white, :gray20]), xlims = (-1.5, 0), ylims = (-1, 0),
-            clims = (0, 5), ylabel = L"\Delta V", xlabel = L"\Delta (B-V)", colorbar_title = L"\log N")
+    hist_plt = heatmap(BV_boxes, V_boxes, log10.(counts), aspect_ratio = :equal, c = cgrad([:white, :gray20]), xlims = (-1.2, 0), ylims = (-1, 0),
+            clims = (0, 5), ylabel = L"\Delta V", xlabel = L"\Delta (B-V)", colorbar_title = L"\log N", xticks = -1.2:0.2:0)
     scatter!(hist_plt, [target_BV], [target_V], xerr = [BV_err], yerr = [V_err], lc = :black, mc = :black)
 end
 

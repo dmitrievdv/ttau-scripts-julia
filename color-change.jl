@@ -136,9 +136,12 @@ end
 T_star = star.T
 # T_star = 4000
 
+V_max = 10.2
+BV_min = 0.9
+
 τ_w = 0
-ΔV0 = 2.6
-ΔBV0 = 0.5
+ΔV0 = 12.8 - V_max
+ΔBV0 = 1.4 - BV_min
 scatter_f = 0.07
 scatter_vb = 1.0
 
@@ -155,7 +158,7 @@ lgS_fs = collect(lgS_f_grid)
 lgf_spots = collect(lgf_spot_grid)
 lgσ_fs = collect(lgσ_f_grid)
 
-name = "RYLup-flipD"
+name = "RYLup-flipC"
 
 not_calc = try readdata(name)
     false
@@ -184,7 +187,7 @@ end
 
 
 
-ΔVobs = -0.05; δΔV = 0.05
+ΔVobs = -0.01; δΔV = 0.05
 ΔBVobs = -0.55; δΔBV = √2*0.05
 
 
@@ -354,7 +357,19 @@ begin
     normal_BV_data = hist_dataBV[hist_dataBV .< 50]
 
     box_width = 0.05
-    start_val = -5.0; end_val = 0.0
+    
+    start_val, end_val = if ΔVobs > 0
+        0.0, 5.0
+    else
+        -5.0, 0.0
+    end
+
+    xlims, ylims = if ΔVobs > 0
+        (0,1.2), (0,1)
+    else
+        (-1.2,0), (-1,0)
+    end
+
     V_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
     BV_boxes = [start_val:box_width:end_val-box_width;] .+ box_width/2
     n_V_boxes = length(V_boxes)
@@ -366,8 +381,8 @@ begin
         counts = zeros(Int, (n_x_box, n_y_box))
         x_box_width = x_boxes[2] - x_boxes[1]
         y_box_width = y_boxes[2] - y_boxes[1]
-        start_x = x_boxes[1] - x_box_width
-        start_y = y_boxes[1] - y_box_width
+        start_x = x_boxes[1] - x_box_width/2
+        start_y = y_boxes[1] - y_box_width/2
         println(start_x, " ", start_y)
         n_array = length(x_array)
         for i_arr = 1:n_array
@@ -386,7 +401,7 @@ begin
     counts = inboxcount2d(V_boxes, BV_boxes, normal_V_data, normal_BV_data) 
 
     # scatter(normal_V_data, normal_BV_data, xlims = (0,1), ylims = (0,1), xlabel = L"\Delta V", ylabel = L"\Delta (B-V)", ms = 0.1, aspect_ratio = :equal)
-    hist_plt = heatmap(BV_boxes, V_boxes, log10.(counts), aspect_ratio = :equal, c = cgrad([:white, :gray20]), xlims = (-1.2, 0), ylims = (-1, 0),
+    hist_plt = heatmap(BV_boxes, V_boxes, log10.(counts), aspect_ratio = :equal, c = cgrad([:white, :gray20]), xlims = xlims, ylims = ylims,
             clims = (0, 5), ylabel = L"\Delta V", xlabel = L"\Delta (B-V)", colorbar_title = L"\log N", xticks = -1.2:0.2:0)
     scatter!(hist_plt, [target_BV], [target_V], xerr = [BV_err], yerr = [V_err], lc = :black, mc = :black)
 end

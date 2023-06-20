@@ -1,6 +1,7 @@
 using TTauUtils
 using Plots
 using Printf
+using LaTeXStrings
 
 macro name(var)
     string(var)
@@ -166,7 +167,7 @@ smooth_screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, or
 
 println("Medium screen...")
 
-screen_h = 1.0
+screen_h = 4.0
 screen_τ = 10
 
 screen_pars = Dict(
@@ -179,9 +180,9 @@ screen_name = "1_10"
 screen_no_anomalies = TTauUtils.Eclipses.GaussianScreen(screen_τ, screen_h)
 
 screen = screen_no_anomalies
-yscreen = [-10:0.5:-5;-5:0.25:-3;-3:0.01:0;].*screen_h .- 1
-yscreen = [yscreen; -1:0.01:1]
-screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen, h = 0.01, 
+yscreen_only = [-10:0.5:-5;-5:0.25:-3;-3:0.01:0;].*screen_h .- 1
+yscreen_only = [yscreen_only; -1:0.01:1]
+screen_eclipse_photometry = TTauUtils.Eclipses.eclipsephotometry(star, orientation, screen, yscreen_only, h = 0.01, 
                                             scatter_filter = scatter_filter, dispersion_filter = dispersion_filter,
                                             filters = used_filters, scatter = scatter_intencity)
 
@@ -194,8 +195,8 @@ begin
 
 println("Anomaly...")
 
-anomaly_x_vel = 0.0
-anomaly_y_vel = 5.0
+anomaly_x_vel = 2.0
+anomaly_y_vel = 1.0
 
 anomaly_speed = √(anomaly_x_vel^2 + anomaly_y_vel^2)
 anomaly_dir = if anomaly_speed > 0
@@ -205,10 +206,10 @@ else
 end
 anomaly_x_dir, anomaly_y_dir = anomaly_dir
 
-screen_event_position = 1.2#*screen_h
+screen_event_position = 5.0#*screen_h
 anomaly_screen_position = screen_event_position + spot_y
-anomaly_τ = 10.0
-anomaly_x_size = 0.5
+anomaly_τ = 0.0
+anomaly_x_size = 0.3
 anomaly_obliq = 5
 anomaly_smoothness = 0.01
 
@@ -252,11 +253,13 @@ s_0 = -screen_event_position
 
 path_width = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))*1.1
 
-screen_y_start = (s_0*((s_y*d_x - s_x*d_y)*v_x + (v_x*d_y + s_y*d_y)*v_y) - ((s_x*d_x + s_y*d_y)*y_0 + (s_y*d_x - s_x*d_y)*x_0) - path_width)
-screen_y_start = screen_y_start/((s_x*d_x + s_y*d_y)*(v_y + 1) + (s_y*d_x - s_x*d_y)*v_x)
+sd_xx = (s_x*d_x + s_y*d_y)
+sd_xy = (s_y*d_x - s_x*d_y)
+screen_y_start = (s_0*(sd_xy*v_x + sd_xx*v_y) - (sd_xx*y_0 + sd_xy*x_0) - path_width)
+screen_y_start = screen_y_start/(sd_xx*(v_y + 1) + sd_xy*v_x)
 
-screen_y_end = (s_0*((s_y*d_x - s_x*d_y)*v_x + (v_x*d_y + s_y*d_y)*v_y) - ((s_x*d_x + s_y*d_y)*y_0 + (s_y*d_x - s_x*d_y)*x_0) + path_width)
-screen_y_end = screen_y_end/((s_x*d_x + s_y*d_y)*(v_y + 1) + (s_y*d_x - s_x*d_y)*v_x)
+screen_y_end = (s_0*(sd_xy*v_x + sd_xx*v_y) - (sd_xx*y_0 + sd_xy*x_0) + path_width)
+screen_y_end = screen_y_end/(sd_xx*(v_y + 1) + sd_xy*v_x)
 
 # screen_y_start = (-1 - anomaly_dir_width*(1 + 2*anomaly_smoothness))/(anomaly_star_speed) - screen_event_position
 # screen_y_end = (1 + anomaly_dir_width*(1 + 2*anomaly_smoothness))/(anomaly_star_speed) - screen_event_position
@@ -392,4 +395,17 @@ plt_color = plot(screen_eclipse_photometry['B'] .- screen_eclipse_photometry['V'
 plot!(plt_color, rough_screen_eclipse_photometry['B'] .- rough_screen_eclipse_photometry['V'], rough_screen_eclipse_photometry['V'], yflip = true, legend = false)
 plot!(plt_color, smooth_screen_eclipse_photometry['B'] .- smooth_screen_eclipse_photometry['V'], smooth_screen_eclipse_photometry['V'], yflip = true, legend = false)
 plot!(plt_color, eclipse_photometry['B'] .- eclipse_photometry['V'], eclipse_photometry['V'], yflip = true, legend = false)
+
+anomaly_screen_photometry = Dict('V' => Float64[], 'B' => Float64[])
+screen_fill_photometry = Dict('V' => Float64[], 'B' => Float64[])
+for filter in "BV"
+    photometry_before_anomaly = screeen_eclipse_photometry[filter][yscreen_only .< screen_y_start]
+    photometry_after_anomaly = screeen_eclipse_photometry[filter][yscreen_only .> screen_y_end]
+    anomaly_screen_photometry[filter] = vcat(photometry_before_anomaly, eclipse_photometry[filter], photometry_after_anomaly)
+    screen_fill_photometry[filter] = screeen_eclipse_photometry[filter][(yscreen_only .> screen_y_start) .& (yscreen_only .< screen_y_end)]
+end
+plt = plot(anomaly_screen_photometry['B'] .- anomaly_screen_photometry['V'], anomaly_screen_photometry['V'], yflip = true, legend = false, lc = :black)
+plot!(plt, screen_fill_photometry['B'] .- screen_fill_photometry['V'], screen_fill_photometry['V'], yflip = true, ls = :dash, lc = :black)
+plot!(plt, xlabel = L"\Delta(B-V)", ylabel = L"\Delta V")
+end
 end
